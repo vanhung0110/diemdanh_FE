@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Chat Hỗ Trợ — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <style>
+        .chat-layout {
+            display: flex;
+            height: calc(100vh - 110px);
+            gap: 0;
+            overflow: hidden;
+            background: var(--bg-raised);
+            box-shadow: inset 0 0 0 1px var(--border-color);
+        }
+
+        .chat-sidebar {
+            width: 280px;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .conv-item {
+            padding: .75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background .12s;
+        }
+
+        .conv-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .conv-item.active {
+            background: rgba(255, 80, 0, .08);
+            border-left: 3px solid var(--fire-orange);
+        }
+
+        .conv-name {
+            font-weight: 700;
+            font-size: .85rem;
+        }
+
+        .conv-preview {
+            font-size: .73rem;
+            color: var(--text-muted);
+            margin-top: .18rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conv-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conv-time {
+            font-size: .68rem;
+            color: var(--text-muted);
+        }
+
+        .unread-chip {
+            background: var(--fire-orange);
+            color: #fff;
+            font-size: .65rem;
+            font-weight: 800;
+            padding: 1px 6px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .msg-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+        }
+
+        .msg-bubble {
+            max-width: 72%;
+            padding: .6rem 1rem;
+            font-size: .85rem;
+            line-height: 1.5;
+        }
+
+        .msg-bubble.user {
+            background: var(--bg-raised);
+            box-shadow: inset 0 0 0 1px var(--border-color);
+            align-self: flex-start;
+        }
+
+        .msg-bubble.ai {
+            background: rgba(59, 130, 246, .09);
+            box-shadow: inset 0 0 0 1px rgba(59, 130, 246, .15);
+            align-self: flex-start;
+            color: #93c5fd;
+        }
+
+        .msg-bubble.admin-out {
+            background: rgba(255, 80, 0, .1);
+            box-shadow: inset 0 0 0 1px rgba(255, 80, 0, .2);
+            align-self: flex-end;
+        }
+
+        .msg-meta {
+            font-size: .65rem;
+            color: var(--text-muted);
+            margin-top: .25rem;
+        }
+
+        .msg-input-row {
+            display: flex;
+            gap: .5rem;
+            padding: .75rem 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: .85rem;
+        }
+
+        .thread-header {
+            padding: .65rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+            font-size: .9rem;
+            background: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Chat Hỗ Trợ</span>
+                <div class="topbar-actions">
+                    <button onclick="loadConversations()" class="btn btn-ghost btn-sm" id="refresh-btn"></button>
+                </div>
+            </header>
+            <div class="page-body" style="padding:0;overflow:hidden">
+                <div class="chat-layout">
+                    <!-- Conversation list -->
+                    <div class="chat-sidebar" id="conv-list">
+                        <div
+                            style="padding:.75rem 1rem;font-size:.7rem;text-transform:uppercase;font-weight:700;color:var(--text-muted);letter-spacing:.08rem;border-bottom:1px solid var(--border-color)">
+                            Cuộc Trò Chuyện</div>
+                        <div id="conv-items">
+                            <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.82rem">Đang
+                                tải...</div>
+                        </div>
+                    </div>
+                    <!-- Thread view -->
+                    <div class="chat-main" id="chat-main">
+                        <div class="chat-empty">← Chọn một cuộc trò chuyện để xem</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('chat');
+        document.getElementById('refresh-btn').innerHTML = Icon.refresh + ' Làm Mới';
+
+        let conversations = [];
+        let activeUserId = null;
+
+        async function loadConversations() {
+            UI.startTopBar();
+            try {
+                conversations = await Api.get('/chat/admin/conversations');
+                renderConvList();
+            } catch (e) { console.error(e); }
+            UI.endTopBar();
+        }
+
+        function renderConvList() {
+            const el = document.getElementById('conv-items');
+            if (!conversations.length) {
+                el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.82rem">Chưa có tin nhắn nào</div>';
+                return;
+            }
+            el.innerHTML = conversations.map(c => {
+                const unread = c.unreadCount > 0 ? `<span class="unread-chip">${c.unreadCount > 99 ? '99+' : c.unreadCount}</span>` : '';
+                const isActive = c.senderId === activeUserId ? 'active' : '';
+                const time = UI.formatDate ? UI.formatDate(c.lastAt) : new Date(c.lastAt).toLocaleString('vi');
+                return `<div class="conv-item ${isActive}" onclick="openThread('${c.senderId}')">
+                    <div class="conv-meta">
+                        <span class="conv-name">${c.senderName} <span style="font-size:.7rem;font-weight:400;color:var(--text-muted)">(${c.senderCode})</span></span>
+                        ${unread}
+                    </div>
+                    <div class="conv-preview">${c.lastMessage}</div>
+                    <div class="conv-time">${time}</div>
+                </div>`;
+            }).join('');
+        }
+
+        async function openThread(userId) {
+            activeUserId = userId;
+            renderConvList(); // re-render to highlight active
+
+            // Mark read
+            try { await Api.post(`/chat/admin/mark-read/${userId}`, {}); } catch (e) { }
+
+            const conv = conversations.find(c => c.senderId === userId);
+            if (!conv) return;
+
+            const main = document.getElementById('chat-main');
+            main.innerHTML = `
+                <div class="thread-header">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--fire-orange);fill:none;stroke-width:2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    ${conv.senderName} <span style="font-weight:400;font-size:.78rem;color:var(--text-muted)">(${conv.senderCode})</span>
+                </div>
+                <div class="msg-area" id="msg-area"></div>
+                <div class="msg-input-row">
+                    <input type="text" id="admin-reply-input" class="form-control" placeholder="Nhập phản hồi của admin..." style="flex:1" onkeydown="if(event.key==='Enter')sendAdminReply()"/>
+                    <button onclick="sendAdminReply()" class="btn btn-primary btn-sm" id="send-btn">Gửi</button>
+                </div>`;
+
+            renderMessages(conv.messages, userId);
+
+            // Reload after marking read
+            setTimeout(loadConversations, 500);
+        }
+
+        function renderMessages(messages, userId) {
+            const area = document.getElementById('msg-area');
+            if (!area) return;
+            area.innerHTML = messages.map(m => {
+                let bubbles = '';
+                // User message
+                bubbles += `<div class="msg-bubble user">
+                    <div>${escHtml(m.content)}</div>
+                    <div class="msg-meta">${m.senderName} · ${fmtTime(m.createdAt)}</div>
+                </div>`;
+                // AI reply
+                if (m.aiReply) {
+                    bubbles += `<div class="msg-bubble ai">
+                        <div style="font-size:.68rem;text-transform:uppercase;font-weight:700;margin-bottom:.25rem;color:#60a5fa">🤖 AI Trả Lời</div>
+                        <div>${escHtml(m.aiReply)}</div>
+                        <div class="msg-meta">${fmtTime(m.aiRepliedAt || m.createdAt)}</div>
+                    </div>`;
+                }
+                // Admin message
+                if (m.isFromAdmin) {
+                    bubbles += `<div class="msg-bubble admin-out">
+                        <div style="font-size:.68rem;text-transform:uppercase;font-weight:700;margin-bottom:.25rem;color:var(--fire-orange)">👤 Admin</div>
+                        <div>${escHtml(m.content)}</div>
+                        <div class="msg-meta">${fmtTime(m.createdAt)}</div>
+                    </div>`;
+                }
+                return bubbles;
+            }).join('');
+            area.scrollTop = area.scrollHeight;
+        }
+
+        async function sendAdminReply() {
+            const input = document.getElementById('admin-reply-input');
+            const content = input?.value?.trim();
+            if (!content || !activeUserId) return;
+            const btn = document.getElementById('send-btn');
+            UI.setLoading(btn, true);
+            try {
+                await Api.post('/chat/admin/reply', { toUserId: activeUserId, content });
+                input.value = '';
+                await loadConversations();
+                const conv = conversations.find(c => c.senderId === activeUserId);
+                if (conv) renderMessages(conv.messages, activeUserId);
+            } catch (e) { alert(e.message); }
+            UI.setLoading(btn, false);
+        }
+
+        function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); }
+        function fmtTime(iso) { try { return new Date(iso).toLocaleString('vi'); } catch { return iso; } }
+
+        loadConversations();
+        // Auto-refresh every 30s
+        setInterval(loadConversations, 30000);
+        pageReady();
+    </script>
+</body>
+
+</html>

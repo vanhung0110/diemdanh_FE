@@ -1,0 +1,106 @@
+/* ================================================================
+   STUDENT THEME — Academic Blue / Indigo
+   Overrides fire variables from main.css with a cool blue palette
+   ================================================================ */
+
+:root {
+    /* Override fire accent with academic blue-indigo */
+    --fire-red: #4f46e5;
+    --fire-orange: #6366f1;
+    --fire-yellow: #818cf8;
+    --fire-grad: linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #6366f1 75%, #818cf8 100%);
+    --fire-glow: 0 0 24px rgba(99, 102, 241, 0.4);
+
+    /* Student-specific tokens */
+    --student-primary: #4f46e5;
+    --student-light: #818cf8;
+    --student-glow: 0 0 24px rgba(99, 102, 241, 0.35);
+    --student-grad: linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #6366f1 75%, #818cf8 100%);
+    --student-bg-tint: rgba(99, 102, 241, 0.06);
+}
+
+/* Body background — cool dark blue tint */
+body {
+    background:
+        radial-gradient(ellipse 60% 40% at 50% -10%, rgba(79, 70, 229, 0.12) 0%, transparent 60%),
+        var(--bg-base);
+}
+
+/* Page loader — blue embers */
+.ember {
+    background: var(--student-primary) !important;
+}
+
+.ember:nth-child(2) {
+    background: var(--student-light) !important;
+}
+
+.ember:nth-child(3) {
+    background: #a5b4fc !important;
+}
+
+/* Auth page background tint */
+.auth-page {
+    background:
+        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(79, 70, 229, 0.1) 0%, transparent 60%),
+        var(--bg-base);
+}
+
+/* Auth logo icon */
+.auth-logo-icon {
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+.auth-logo-icon svg {
+    stroke: var(--student-primary);
+}
+
+/* Student badge */
+.student-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--student-light);
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.25);
+    padding: 0.15rem 0.6rem;
+    margin-bottom: 1rem;
+}
+
+/* Stat icons — blue */
+.stat-icon svg {
+    stroke: var(--student-primary);
+}
+
+/* Top progress bar */
+#top-loading-bar {
+    background: var(--student-grad);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+}
+
+/* Nav header accent line */
+.student-header-accent {
+    height: 2px;
+    background: var(--student-grad);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+}
+
+/* Result cards — use blue for success */
+.result-success-icon {
+    stroke: #818cf8;
+}
+
+/* Section title bar */
+.section-title::before {
+    background: var(--student-grad);
+}
+
+/* Checkin result card */
+.checkin-success {
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.4) !important;
+}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Đăng Ký Sinh Viên — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <link rel="stylesheet" href="../css/student.css" />
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+
+    <div class="auth-page">
+        <div class="auth-card card" style="max-width:520px">
+            <div class="auth-logo">
+                <svg width="36" height="36" viewBox="0 0 24 24" stroke="#6366f1" fill="none" stroke-width="1.5"
+                    style="margin:0 auto 0.5rem;display:block">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+                <div class="student-badge" style="display:inline-flex">
+                    <svg width="9" height="9" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    Đăng Ký Sinh Viên
+                </div>
+                <h1 style="font-size:1.3rem;font-weight:800;margin-bottom:0.3rem">Đăng Ký Tài Khoản</h1>
+                <p style="color:var(--text-muted);font-size:0.8rem">Cần mã đăng ký từ Admin/Thầy cô phụ trách</p>
+            </div>
+
+            <div id="alert-box"></div>
+
+            <form id="register-form">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Mã Đăng Ký (từ Admin)</label>
+                        <input type="text" id="reg-code" class="form-control" placeholder="AB12CD34" required
+                            style="text-transform:uppercase" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MSSV (Mã Sinh Viên)</label>
+                        <input type="text" id="student-code" class="form-control" placeholder="SV001" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Họ và Tên</label>
+                    <input type="text" id="fullname" class="form-control" placeholder="Nguyễn Văn A" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email trường</label>
+                    <input type="email" id="email" class="form-control" placeholder="sv001@truong.edu.vn" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Khoa / Ngành</label>
+                    <input type="text" id="faculty" class="form-control" placeholder="Công Nghệ Thông Tin" required />
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Mật Khẩu</label>
+                        <input type="password" id="password" class="form-control" placeholder="Tối thiểu 6 ký tự"
+                            required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Xác Nhận Mật Khẩu</label>
+                        <input type="password" id="password2" class="form-control" placeholder="Nhập lại" required />
+                    </div>
+                </div>
+                <div class="alert alert-info mt-1">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                        <line x1="12" y1="12" x2="12" y2="16" />
+                    </svg>
+                    <span>Tài khoản sẽ được liên kết thiết bị này. Đăng nhập thiết bị khác cần liên hệ Admin.</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-2" id="reg-btn" style="padding:0.875rem">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Hoàn Tất Đăng Ký
+                </button>
+            </form>
+            <div class="text-center mt-2">
+                <a href="index.html" class="btn btn-ghost btn-sm">← Đã có tài khoản? Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('reg-btn'), alertBox = document.getElementById('alert-box');
+            UI.clearAlert(alertBox);
+            if (document.getElementById('password').value !== document.getElementById('password2').value) return UI.showAlert(alertBox, 'Mật khẩu xác nhận không khớp!', 'error');
+            UI.setLoading(btn, true);
+            try {
+                const data = await Api.post('/auth/register', {
+                    email: document.getElementById('email').value.trim(),
+                    password: document.getElementById('password').value,
+                    fullName: document.getElementById('fullname').value.trim(),
+                    employeeCode: '',
+                    department: '',
+                    position: '',
+                    studentCode: document.getElementById('student-code').value.trim().toUpperCase(),
+                    faculty: document.getElementById('faculty').value.trim(),
+                    role: 'Student',
+                    registrationCode: document.getElementById('reg-code').value.trim().toUpperCase(),
+                    deviceId: DeviceFingerprint.get(),
+                    deviceName: DeviceFingerprint.getName()
+                }, false);
+                Auth.setToken(data.token);
+                UI.showAlert(alertBox, 'Đăng ký thành công! Đang chuyển hướng...', 'success');
+                setTimeout(() => window.location.href = 'scan.html', 1200);
+            } catch (err) { UI.showAlert(alertBox, err.message, 'error'); UI.setLoading(btn, false); }
+        });
+        setTimeout(() => UI.hideLoader(), 400);
+    </script>
+</body>
+
+</html>

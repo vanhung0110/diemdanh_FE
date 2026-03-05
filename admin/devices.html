@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Thiết Bị — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Quản Lý Thiết Bị</span>
+            </header>
+            <div class="page-body">
+                <div class="alert alert-info mb-3">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                        <line x1="12" y1="18" x2="12.01" y2="18" />
+                    </svg>
+                    <span><strong>Device Fingerprint:</strong> Mỗi nhân viên chỉ được điểm danh trên thiết bị đã đăng
+                        ký. Nhân viên muốn đổi thiết bị cần mã <strong>ChangeDevice</strong> từ admin.</span>
+                </div>
+                <div id="alert-box"></div>
+                <div class="card">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nhân Viên</th>
+                                    <th>Tên Thiết Bị</th>
+                                    <th>Device ID</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Đăng Ký Lúc</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dev-tbody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted" style="padding:3rem">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('devices');
+        async function loadDevices() {
+            UI.startTopBar();
+            try {
+                const data = await Api.get('/admin/devices');
+                const tbody = document.getElementById('dev-tbody');
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:3rem">Chưa có thiết bị nào</td></tr>'; UI.endTopBar(); return; }
+                tbody.innerHTML = data.map(d => `
+        <tr>
+          <td style="font-weight:600">${d.employeeName}</td>
+          <td>${d.deviceName}</td>
+          <td><span class="mono" style="font-size:0.78rem;color:var(--text-muted)">${d.deviceId.substring(0, 20)}...</span></td>
+          <td>${d.isActive ? '<span class="badge badge-success">Hoạt động</span>' : '<span class="badge badge-danger">Thu hồi</span>'}</td>
+          <td class="text-muted" style="font-size:0.8rem">${UI.formatDate(d.registeredAt)}</td>
+          <td>${d.isActive ? `<button onclick="revokeDevice(${d.id},'${d.employeeName}')" class="btn btn-danger btn-sm">Thu Hồi</button>` : '-'}</td>
+        </tr>`).join('');
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.endTopBar();
+        }
+        async function revokeDevice(id, name) {
+            if (!confirm(`Thu hồi thiết bị của ${name}?\nHọ sẽ cần mã ChangeDevice mới để đăng nhập ở thiết bị khác.`)) return;
+            try { await Api.delete(`/admin/devices/${id}`); loadDevices(); UI.showAlert(document.getElementById('alert-box'), 'Đã thu hồi thiết bị.', 'success'); }
+            catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+        }
+        loadDevices();
+        pageReady();
+    </script>
+</body>
+
+</html>

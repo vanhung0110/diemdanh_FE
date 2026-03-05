@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Màn Hình Check-Out QR — Điểm Danh</title>
+    <meta name="description" content="Màn hình hiển thị QR Code Check-Out tại công ty" />
+    <link rel="stylesheet" href="css/main.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body {
+            background: #040408;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            background-image:
+                radial-gradient(ellipse 70% 50% at 50% -10%, rgba(99, 102, 241, 0.22) 0%, transparent 65%),
+                radial-gradient(ellipse 40% 30% at 90% 90%, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+        }
+
+        .display-container {
+            text-align: center;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .company-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .checkout-label {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #818cf8;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .work-end-time {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .qr-wrapper {
+            background: #fff;
+            padding: 1.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 60px rgba(99, 102, 241, 0.4), 0 0 120px rgba(99, 102, 241, 0.12), 0 0 2px rgba(139, 92, 246, 0.8);
+            margin-bottom: 2rem;
+            position: relative;
+            animation: qr-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes qr-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 60px rgba(99, 102, 241, 0.4), 0 0 120px rgba(99, 102, 241, 0.12), 0 0 2px rgba(139, 92, 246, 0.8)
+            }
+
+            50% {
+                box-shadow: 0 0 80px rgba(139, 92, 246, 0.55), 0 0 160px rgba(139, 92, 246, 0.18), 0 0 3px rgba(167, 139, 250, 0.9)
+            }
+        }
+
+        .qr-wrapper img {
+            width: 280px;
+            height: 280px;
+            display: block;
+        }
+
+        .qr-wrapper .loading {
+            width: 280px;
+            height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .timer-ring {
+            position: relative;
+            margin: 0 auto 1.5rem;
+            width: 110px;
+            height: 110px;
+        }
+
+        .timer-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .timer-circle-bg {
+            stroke: rgba(255, 255, 255, 0.06);
+        }
+
+        .timer-circle-fg {
+            stroke: #818cf8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .timer-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.4rem;
+            font-weight: 900;
+            color: #818cf8;
+        }
+
+        .helper-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        .sub-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--color-success);
+            animation: blink 1.5s ease-in-out infinite;
+            margin-right: 0.4rem;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        .step-list {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .step-num {
+            width: 28px;
+            height: 28px;
+            background: rgba(99, 102, 241, 0.15);
+            box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #818cf8;
+        }
+
+        .step-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 80px;
+        }
+
+        .conn-status {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="display-container">
+        <div class="company-name" id="company-name">Hệ Thống Điểm Danh QR</div>
+        <div class="checkout-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="vertical-align:middle;margin-right:0.4rem">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            CHECK-OUT
+        </div>
+        <div class="work-end-time" id="work-end-display">Giờ ra về: Đang tải...</div>
+
+        <div class="qr-wrapper" id="qr-box">
+            <div class="loading">
+                <div class="fire-orb" style="width:40px;height:40px">
+                    <div class="fire-embers">
+                        <div class="ember"></div>
+                        <div class="ember"></div>
+                        <div class="ember"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="timer-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+                <circle class="timer-circle-bg" cx="55" cy="55" r="48" fill="none" stroke-width="6" />
+                <circle class="timer-circle-fg" id="timer-circle" cx="55" cy="55" r="48" fill="none" stroke-width="6"
+                    stroke-dasharray="301.6" stroke-dashoffset="0" />
+            </svg>
+            <div class="timer-number" id="timer-num">--</div>
+        </div>
+
+        <div class="helper-text"><span class="status-dot"></span>QR Check-Out tự động cập nhật</div>
+        <div class="sub-text" id="expires-text">Đang tải QR code...</div>
+
+        <div class="step-list">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-label">Mở app & đăng nhập</div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-label">Nhấn "Check-Out"</div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-label">Hướng camera vào đây</div>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-label">Xác nhận ra về</div>
+            </div>
+        </div>
+
+        <div class="conn-status" id="conn-status"><span class="status-dot"></span>Đang kết nối...</div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        const CIRCUMFERENCE = 2 * Math.PI * 48; // 301.6
+        let rotationSeconds = 30, timerInterval = null;
+
+        async function loadCheckOutQr() {
+            try {
+                const data = await Api.get('/qr/checkout-current', false);
+                rotationSeconds = data.rotationSeconds || 30;
+                displayQr(data.qrImageBase64, data.expiresAt);
+                startCountdown(new Date(data.expiresAt));
+                document.getElementById('conn-status').innerHTML = '<span class="status-dot"></span>Đã kết nối — Live';
+            } catch (e) {
+                document.getElementById('qr-box').innerHTML =
+                    '<div class="loading" style="flex-direction:column;gap:1rem">' +
+                    '<svg width="32" height="32" viewBox="0 0 24 24" stroke="#ef4444" fill="none" stroke-width="1.8">' +
+                    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>' +
+                    '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+                    '<span style="color:#ef4444;font-size:0.8rem">Không thể tải QR</span></div>';
+            }
+        }
+
+        function displayQr(base64Img, expiresAt) {
+            document.getElementById('qr-box').innerHTML = `<img src="${base64Img}" alt="QR Code check-out"/>`;
+            if (expiresAt)
+                document.getElementById('expires-text').textContent = `Hết hạn lúc: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`;
+        }
+
+        function startCountdown(expiresAt) {
+            if (timerInterval) clearInterval(timerInterval);
+            const circle = document.getElementById('timer-circle'), numEl = document.getElementById('timer-num');
+            timerInterval = setInterval(() => {
+                const remaining = Math.max(0, Math.ceil((new Date(expiresAt) - Date.now()) / 1000));
+                numEl.textContent = remaining;
+                circle.style.strokeDashoffset = CIRCUMFERENCE * (1 - remaining / rotationSeconds);
+                if (remaining <= 5) { circle.style.stroke = '#ef4444'; numEl.style.color = '#ef4444'; }
+                else { circle.style.stroke = '#818cf8'; numEl.style.color = '#818cf8'; }
+            }, 1000);
+        }
+
+        async function connectSignalR() {
+            try {
+                const conn = new signalR.HubConnectionBuilder()
+                    .withUrl(`http://${window.location.hostname}:5000/hubs/qr`)
+                    .withAutomaticReconnect().build();
+                conn.on('ReceiveNewCheckOutQr', (data) => {
+                    rotationSeconds = data.rotationSeconds || 30;
+                    displayQr(data.qrImage, data.expiresAt);
+                    startCountdown(new Date(data.expiresAt));
+                });
+                conn.onreconnecting(() => {
+                    document.getElementById('conn-status').innerHTML =
+                        '<span class="status-dot" style="background:var(--color-warning)"></span>Đang kết nối lại...';
+                });
+                conn.onreconnected(() => {
+                    document.getElementById('conn-status').innerHTML =
+                        '<span class="status-dot"></span>Đã kết nối lại — Live';
+                });
+                await conn.start();
+                document.getElementById('conn-status').innerHTML =
+                    '<span class="status-dot"></span>Kết nối LiveQR thành công!';
+            } catch (e) {
+                document.getElementById('conn-status').innerHTML =
+                    '<span class="status-dot" style="background:var(--color-warning)"></span>Chế độ polling';
+                setInterval(loadCheckOutQr, 5000);
+            }
+        }
+
+        // Load settings and QR
+        Api.get('/admin/settings', false).then(s => {
+            if (s?.companyName) document.getElementById('company-name').textContent = s.companyName;
+            if (s?.workEndTime) {
+                document.getElementById('work-end-display').textContent = `Giờ ra về: ${s.workEndTime}`;
+            }
+        }).catch(() => { });
+
+        loadCheckOutQr().then(connectSignalR);
+    </script>
+</body>
+
+</html>

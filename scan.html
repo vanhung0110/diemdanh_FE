@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Quét QR Điểm Danh</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+
+    <header
+        style="background:var(--bg-surface);border-bottom:1px solid var(--border-color);padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50">
+        <div class="flex items-center gap-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="var(--fire-orange)" fill="none" stroke-width="1.8">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="3" height="3" />
+            </svg>
+            <span style="font-weight:700;font-size:0.95rem">Điểm Danh QR</span>
+            <span id="user-name" style="font-size:0.75rem;color:var(--text-muted)"></span>
+        </div>
+        <div class="flex gap-2">
+            <a href="checkout-scan.html" class="btn btn-ghost btn-sm" style="color:#818cf8">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Check-Out
+            </a>
+            <a href="history.html" class="btn btn-ghost btn-sm">
+                <svg viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                </svg>
+                Lịch Sử
+            </a>
+            <button onclick="openChangePwModal()" class="btn btn-ghost btn-sm" title="Đổi mật khẩu">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+                Đổi MK
+            </button>
+            <button onclick="Auth.logout()" class="btn btn-ghost btn-sm">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Đăng Xuất
+            </button>
+        </div>
+    </header>
+
+    <main style="max-width:640px;margin:0 auto;padding:1.5rem 1rem">
+
+        <!-- Check-in Result -->
+        <div id="checkin-result" class="hidden">
+            <div id="result-card" class="card text-center" style="padding:2.5rem">
+                <div id="result-icon" style="margin-bottom:1rem"></div>
+                <h2 id="result-title" style="font-size:1.4rem;font-weight:800;margin-bottom:0.5rem"></h2>
+                <p id="result-msg" class="text-muted" style="font-size:0.9rem"></p>
+                <button onclick="resetScan()" class="btn btn-ghost mt-3">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+                    </svg>
+                    Quét Lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Scanner Section -->
+        <div id="scanner-section">
+            <div class="card mb-2">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="section-title" style="font-size:0.9rem;margin-bottom:0">Camera Scanner</div>
+                    <div id="gps-status" class="badge badge-warning">GPS: Đang xác định...</div>
+                </div>
+                <div id="reader"
+                    style="width:100%;overflow:hidden;box-shadow:inset 0 0 0 1px var(--border-color);min-height:80px">
+                </div>
+                <div class="flex gap-3 justify-center mt-2" id="scanner-controls">
+                    <button id="btn-start" onclick="startScanner()" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                        </svg>
+                        Bắt Đầu Quét
+                    </button>
+                    <button id="btn-stop" onclick="stopScanner()" class="btn btn-ghost btn-sm" style="display:none">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="6" y="4" width="4" height="16" />
+                            <rect x="14" y="4" width="4" height="16" />
+                        </svg>
+                        Dừng
+                    </button>
+                </div>
+                <p class="text-muted text-center mt-2" style="font-size:0.78rem">Hướng camera vào QR Code được hiển thị
+                    tại công ty</p>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="font-size:0.85rem;margin-bottom:0.75rem">Thông tin kết nối</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                    <div><span class="text-muted" style="font-size:0.72rem;text-transform:uppercase">Thiết bị</span>
+                        <div style="font-size:0.85rem;margin-top:0.2rem" id="info-device">-</div>
+                    </div>
+                    <div><span class="text-muted" style="font-size:0.72rem;text-transform:uppercase">GPS</span>
+                        <div style="font-size:0.85rem;margin-top:0.2rem" id="info-gps">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHANGE PASSWORD MODAL -->
+        <div class="modal-overlay" id="change-pw-modal">
+            <div class="modal">
+                <div class="modal-title">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    Đổi Mật Khẩu
+                </div>
+                <div class="alert alert-info" style="font-size:0.78rem;margin-bottom:1rem">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                        <line x1="12" y1="12" x2="12" y2="16" />
+                    </svg>
+                    <span>Yêu cầu admin tạo mã OTP cho tài khoản của bạn trước. Mã có hiệu lực 1 giờ.</span>
+                </div>
+                <div id="change-pw-alert"></div>
+                <div class="form-group">
+                    <label class="form-label">Tên đăng nhập (Mã NV/SV hoặc Email)</label>
+                    <input type="text" id="cpw-username" class="form-control" placeholder="NV00001" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mã OTP từ Admin</label>
+                    <input type="text" id="cpw-otp" class="form-control" placeholder="AB12CD34"
+                        style="text-transform:uppercase;letter-spacing:0.15rem;font-weight:700;text-align:center"
+                        maxlength="8" oninput="this.value=this.value.toUpperCase()" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mật Khẩu Mới (tối thiểu 6 ký tự)</label>
+                    <input type="password" id="cpw-new" class="form-control" placeholder="••••••••" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Xác Nhận Mật Khẩu Mới</label>
+                    <input type="password" id="cpw-confirm" class="form-control" placeholder="Nhập lại" />
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeChangePwModal()" class="btn btn-ghost">Hủy</button>
+                    <button onclick="submitChangePw()" class="btn btn-primary" id="cpw-btn">
+                        <svg viewBox="0 0 24 24">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Đổi Mật Khẩu
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script src="js/api.js"></script>
+        <script>
+            if (!Auth.requireLogin()) { }
+
+            const user = Auth.getUser();
+            document.getElementById('user-name').textContent = user?.fullName || user?.email || '';
+            document.getElementById('info-device').textContent = DeviceFingerprint.getName();
+
+            let currentLat = null, currentLon = null, isMockLocation = false, scanning = false, html5QrcodeScanner = null;
+
+            function startGps() {
+                if (!navigator.geolocation) { document.getElementById('gps-status').textContent = 'GPS: Không hỗ trợ'; return; }
+                navigator.geolocation.watchPosition(
+                    pos => {
+                        currentLat = pos.coords.latitude; currentLon = pos.coords.longitude; isMockLocation = false;
+                        document.getElementById('gps-status').className = 'badge badge-success';
+                        document.getElementById('gps-status').textContent = 'GPS: Sẵn sàng';
+                        document.getElementById('info-gps').textContent = `${currentLat.toFixed(4)},${currentLon.toFixed(4)}`;
+                    },
+                    () => { document.getElementById('gps-status').className = 'badge badge-warning'; document.getElementById('gps-status').textContent = 'GPS: Không có'; },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+            }
+
+            function startScanner() {
+                document.getElementById('btn-start').style.display = 'none';
+                document.getElementById('btn-stop').style.display = 'flex';
+                html5QrcodeScanner = new Html5Qrcode("reader");
+                html5QrcodeScanner.start(
+                    { facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+                    async (qrToken) => { if (scanning) return; scanning = true; await processCheckIn(qrToken); },
+                    () => { }
+                ).catch(() => {
+                    document.getElementById('btn-start').style.display = 'flex';
+                    document.getElementById('btn-stop').style.display = 'none';
+                    UI.showAlert(document.getElementById('main-alert'), 'Không thể mở camera. Vui lòng cấp quyền camera cho trang web này.', 'warning');
+                });
+            }
+
+            function stopScanner() {
+                if (html5QrcodeScanner) { html5QrcodeScanner.stop().catch(() => { }); html5QrcodeScanner = null; }
+                document.getElementById('btn-start').style.display = 'flex';
+                document.getElementById('btn-stop').style.display = 'none';
+                scanning = false;
+            }
+
+            async function processCheckIn(qrToken) {
+                try {
+                    const data = await Api.post('/attendance/checkin', { qrToken, latitude: currentLat, longitude: currentLon, deviceId: DeviceFingerprint.get(), wifiBssid: '', isMockLocationSuspected: isMockLocation });
+                    showResult(data.success, data.success ? 'Điểm Danh Thành Công!' : 'Điểm Danh Thất Bại', data.message, data.success);
+                } catch (err) { showResult(false, 'Lỗi', err.message, false); }
+            }
+
+            function showResult(success, title, msg, ok) {
+                document.getElementById('scanner-section').classList.add('hidden');
+                document.getElementById('checkin-result').classList.remove('hidden');
+                const iconSvg = ok
+                    ? '<svg width="52" height="52" viewBox="0 0 24 24" stroke="var(--color-success)" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>'
+                    : '<svg width="52" height="52" viewBox="0 0 24 24" stroke="var(--color-danger)" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+                document.getElementById('result-icon').innerHTML = iconSvg;
+                document.getElementById('result-title').textContent = title;
+                document.getElementById('result-msg').textContent = msg;
+                document.getElementById('result-card').style.boxShadow = `inset 0 0 0 1px ${ok ? 'rgba(6,214,160,0.4)' : 'rgba(239,68,68,0.4)'}`;
+                if (html5QrcodeScanner) html5QrcodeScanner.stop().catch(() => { });
+            }
+
+            function resetScan() {
+                document.getElementById('scanner-section').classList.remove('hidden');
+                document.getElementById('checkin-result').classList.add('hidden');
+                scanning = false;
+                document.getElementById('btn-start').style.display = 'flex';
+                document.getElementById('btn-stop').style.display = 'none';
+            }
+
+            // ===== CHANGE PASSWORD =====
+            function openChangePwModal() {
+                const u = Auth.getUser();
+                document.getElementById('cpw-username').value = u?.email || u?.sub || '';
+                document.getElementById('cpw-otp').value = '';
+                document.getElementById('cpw-new').value = '';
+                document.getElementById('cpw-confirm').value = '';
+                UI.clearAlert(document.getElementById('change-pw-alert'));
+                document.getElementById('change-pw-modal').classList.add('active');
+            }
+            function closeChangePwModal() { document.getElementById('change-pw-modal').classList.remove('active'); }
+
+            async function submitChangePw() {
+                const btn = document.getElementById('cpw-btn'), alertBox = document.getElementById('change-pw-alert');
+                UI.clearAlert(alertBox);
+                const username = document.getElementById('cpw-username').value.trim();
+                const otp = document.getElementById('cpw-otp').value.trim();
+                const pw1 = document.getElementById('cpw-new').value;
+                const pw2 = document.getElementById('cpw-confirm').value;
+                if (!username || !otp || !pw1) return UI.showAlert(alertBox, 'Vui lòng điền đầy đủ.', 'error');
+                if (pw1 !== pw2) return UI.showAlert(alertBox, 'Mật khẩu xác nhận không khớp.', 'error');
+                if (pw1.length < 6) return UI.showAlert(alertBox, 'Mật khẩu phải ít nhất 6 ký tự.', 'error');
+                UI.setLoading(btn, true);
+                try {
+                    const res = await Api.post('/auth/change-password', { username, otpCode: otp, newPassword: pw1 }, false);
+                    UI.showAlert(alertBox, res.message || 'Đổi mật khẩu thành công! Vui lòng đăng nhập lại.', 'success');
+                    setTimeout(() => { Auth.logout(); }, 2000);
+                } catch (e) { UI.showAlert(alertBox, e.message, 'error'); }
+                UI.setLoading(btn, false);
+            }
+
+            startGps();
+            setTimeout(() => UI.hideLoader(), 400);
+        </script>
+
+        <!-- ==================== FLOATING CHAT WIDGET ==================== -->
+        <style>
+            #chat-fab {
+                position: fixed;
+                bottom: 1.5rem;
+                right: 1.5rem;
+                width: 52px;
+                height: 52px;
+                background: linear-gradient(135deg, var(--fire-orange), #f97316);
+                color: #fff;
+                border: none;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 20px rgba(255, 80, 0, .4);
+                z-index: 1000;
+                transition: transform .15s;
+            }
+
+            #chat-fab:hover {
+                transform: scale(1.08);
+            }
+
+            #chat-fab-badge {
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background: #ef4444;
+                color: #fff;
+                font-size: .6rem;
+                font-weight: 800;
+                padding: 1px 5px;
+                min-width: 16px;
+                text-align: center;
+                display: none;
+            }
+
+            #chat-popup {
+                position: fixed;
+                bottom: 4.5rem;
+                right: 1.5rem;
+                width: 340px;
+                max-height: 500px;
+                background: var(--bg-surface);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+                display: none;
+                flex-direction: column;
+                z-index: 1001;
+                overflow: hidden;
+                border: 1px solid var(--border-color);
+            }
+
+            #chat-popup.open {
+                display: flex;
+            }
+
+            .cp-head {
+                background: linear-gradient(90deg, var(--fire-orange), #f97316);
+                color: #fff;
+                padding: .65rem 1rem;
+                font-weight: 700;
+                font-size: .85rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .cp-msgs {
+                flex: 1;
+                overflow-y: auto;
+                padding: .75rem;
+                display: flex;
+                flex-direction: column;
+                gap: .5rem;
+                max-height: 330px;
+            }
+
+            .cp-msg {
+                padding: .5rem .75rem;
+                font-size: .8rem;
+                line-height: 1.5;
+                max-width: 90%;
+            }
+
+            .cp-msg.me {
+                background: rgba(255, 80, 0, .12);
+                box-shadow: inset 0 0 0 1px rgba(255, 80, 0, .2);
+                align-self: flex-end;
+            }
+
+            .cp-msg.ai {
+                background: rgba(59, 130, 246, .1);
+                box-shadow: inset 0 0 0 1px rgba(59, 130, 246, .15);
+                align-self: flex-start;
+                color: #93c5fd;
+            }
+
+            .cp-msg-label {
+                font-size: .62rem;
+                text-transform: uppercase;
+                font-weight: 700;
+                margin-bottom: .2rem;
+            }
+
+            .cp-input {
+                display: flex;
+                gap: .4rem;
+                padding: .5rem .75rem;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .cp-input input {
+                flex: 1;
+                font-size: .8rem;
+            }
+
+            .cp-input button {
+                font-size: .75rem;
+                padding: .35rem .75rem;
+            }
+        </style>
+
+        <button id="chat-fab" onclick="toggleChatPopup()" title="Chat hỗ trợ">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+            </svg>
+            <span id="chat-fab-badge">0</span>
+        </button>
+
+        <div id="chat-popup">
+            <div class="cp-head">
+                <span>💬 Chat Hỗ Trợ</span>
+                <button onclick="toggleChatPopup()"
+                    style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem;line-height:1">✕</button>
+            </div>
+            <div class="cp-msgs" id="cp-msgs">
+                <div style="color:var(--text-muted);font-size:.78rem;text-align:center;padding:.5rem">Gửi câu hỏi — AI
+                    sẽ tự động trả lời, Admin cũng sẽ xem tin nhắn của bạn.</div>
+            </div>
+            <div class="cp-input">
+                <input type="text" id="cp-input" class="form-control" placeholder="Nhập tin nhắn..."
+                    onkeydown="if(event.key==='Enter')sendChat()" />
+                <button onclick="sendChat()" class="btn btn-primary btn-sm" id="cp-send-btn">Gửi</button>
+            </div>
+        </div>
+
+        <script>
+            let chatPopupOpen = false;
+            let chatMessages = [];
+
+            function toggleChatPopup() {
+                chatPopupOpen = !chatPopupOpen;
+                document.getElementById('chat-popup').classList.toggle('open', chatPopupOpen);
+                if (chatPopupOpen) loadChatHistory();
+            }
+
+            async function loadChatHistory() {
+                try {
+                    chatMessages = await Api.get('/chat/history');
+                    renderChatMessages();
+                } catch (e) { }
+            }
+
+            function renderChatMessages() {
+                const el = document.getElementById('cp-msgs');
+                if (!chatMessages.length) return;
+                let html = '<div style="color:var(--text-muted);font-size:.78rem;text-align:center;padding:.5rem">AI tự động trả lời. Admin cũng theo dõi.</div>';
+                chatMessages.forEach(m => {
+                    html += `<div class="cp-msg me"><div>${escChat(m.content)}</div><div style="font-size:.62rem;color:var(--text-muted);margin-top:.2rem;text-align:right">${fmtChat(m.createdAt)}</div></div>`;
+                    if (m.aiReply) {
+                        html += `<div class="cp-msg ai"><div class="cp-msg-label">🤖 AI</div><div>${escChat(m.aiReply)}</div></div>`;
+                    }
+                });
+                el.innerHTML = html;
+                el.scrollTop = el.scrollHeight;
+            }
+
+            async function sendChat() {
+                const input = document.getElementById('cp-input');
+                const text = input?.value?.trim();
+                if (!text) return;
+                const btn = document.getElementById('cp-send-btn');
+                btn.disabled = true; btn.textContent = '...';
+                try {
+                    const res = await Api.post('/chat/send', { content: text });
+                    input.value = '';
+                    await loadChatHistory();
+                } catch (e) { alert(e.message || 'Lỗi gửi tin nhắn'); }
+                btn.disabled = false; btn.textContent = 'Gửi';
+            }
+
+            function escChat(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); }
+            function fmtChat(iso) { try { return new Date(iso).toLocaleTimeString('vi'); } catch { return ''; } }
+        </script>
+</body>
+
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Báo Cáo — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        .late-date-item {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2);
+            padding: 2px 6px;
+            margin: 2px;
+            font-size: 0.75rem;
+            color: #f87171;
+        }
+
+        .late-stat {
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+            background: var(--bg-raised);
+            box-shadow: inset 0 0 0 1px var(--border-color);
+        }
+
+        .late-stat .v {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--fire-orange);
+        }
+
+        .late-stat .l {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Báo Cáo & Thống Kê</span>
+            </header>
+            <div class="page-body">
+                <!-- Filter bar -->
+                <div class="card mb-2" style="padding:0.75rem 1rem">
+                    <div class="flex gap-3 items-center" style="flex-wrap:wrap">
+                        <div><label class="form-label">Từ Ngày</label><input type="date" id="from-date"
+                                class="form-control" /></div>
+                        <div><label class="form-label">Đến Ngày</label><input type="date" id="to-date"
+                                class="form-control" /></div>
+                        <div style="min-width:130px"><label class="form-label">Giờ vào trễ sau</label><input type="time"
+                                id="late-threshold" class="form-control" value="08:00" /></div>
+                        <div style="display:flex;align-items:flex-end">
+                            <button onclick="loadAll()" class="btn btn-primary" id="load-btn"></button>
+                        </div>
+                    </div>
+                </div>
+                <div id="alert-box"></div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('tab-report',this)">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                        Báo Cáo Điểm Danh
+                    </button>
+                    <button class="tab" onclick="switchTab('tab-late',this)">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Quản Lý Đi Trễ
+                    </button>
+                </div>
+
+                <!-- TAB 1: REPORT -->
+                <div id="tab-report" class="tab-panel active">
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-2" style="flex-wrap:wrap;gap:0.5rem">
+                            <span id="result-count" class="text-muted" style="font-size:0.82rem"></span>
+                            <div class="flex gap-2">
+                                <button onclick="exportMatrixExcel()" class="btn btn-ghost btn-sm"
+                                    id="matrix-btn"></button>
+                                <button onclick="exportListExcel()" class="btn btn-ghost btn-sm" id="list-btn"></button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nhân Viên</th>
+                                        <th>Mã NV</th>
+                                        <th>Phòng Ban</th>
+                                        <th>Check-In</th>
+                                        <th>Check-Out</th>
+                                        <th>Thời Gian LV</th>
+                                        <th>IP</th>
+                                        <th>GPS</th>
+                                        <th>Trạng Thái</th>
+                                        <th>AI</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-tbody">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted" style="padding:3rem">Chọn ngày và
+                                            nhấn Tải Dữ Liệu</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: LATE -->
+                <div id="tab-late" class="tab-panel">
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-2" style="flex-wrap:wrap;gap:0.5rem">
+                            <span id="late-count-label" class="text-muted" style="font-size:0.82rem"></span>
+                            <button onclick="exportLateExcel()" class="btn btn-ghost btn-sm"
+                                id="late-export-btn"></button>
+                        </div>
+                        <div id="late-summary-cards" class="flex gap-2 mb-2" style="flex-wrap:wrap"></div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Họ Tên NV</th>
+                                        <th>Mã NV</th>
+                                        <th>Phòng Ban</th>
+                                        <th>Số Ngày Đi Trễ</th>
+                                        <th>Ngày Đi Trễ Trong Kỳ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="late-tbody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted" style="padding:3rem">Chọn ngày và
+                                            nhấn Tải Dữ Liệu</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('reports');
+
+        // Set button icons
+        document.getElementById('load-btn').innerHTML = Icon.search + ' Tải Dữ Liệu';
+        document.getElementById('matrix-btn').innerHTML = Icon.download + ' Xuất Excel có màu';
+        document.getElementById('list-btn').innerHTML = Icon.download + ' Xuất Danh Sách';
+        document.getElementById('late-export-btn').innerHTML = Icon.download + ' Xuất Excel Đi Trễ';
+
+        // Default: current month
+        const now = new Date();
+        document.getElementById('from-date').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('to-date').value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        let allData = [], allEmployees = [];
+
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active'); btn.classList.add('active');
+        }
+
+        async function loadAll() {
+            UI.startTopBar();
+            const from = document.getElementById('from-date').value;
+            const to = document.getElementById('to-date').value;
+            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="8" class="text-center text-muted">Đang tải...</td></tr>';
+            document.getElementById('late-tbody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>';
+            try {
+                [allData, allEmployees] = await Promise.all([
+                    Api.get(`/admin/reports?from=${from}T00:00:00&to=${to}T23:59:59&onlyValid=false`),
+                    Api.get('/admin/employees')
+                ]);
+                renderReport(allData);
+                renderLateReport(allData, allEmployees);
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.endTopBar();
+        }
+
+        function getThresholdMin() { const [h, m] = document.getElementById('late-threshold').value.split(':').map(Number); return h * 60 + m; }
+        function daysBetween(f, t) { return Math.ceil((new Date(t) - new Date(f)) / 86400000) + 1; }
+
+        function renderReport(data) {
+            const lateH = getThresholdMin();
+            document.getElementById('result-count').textContent = `Tìm thấy ${data.length} bản ghi`;
+            if (!data.length) { document.getElementById('report-tbody').innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:3rem">Không có dữ liệu</td></tr>'; return; }
+            document.getElementById('report-tbody').innerHTML = data.map(r => {
+                const dt = new Date(r.checkInTime), isLate = (dt.getHours() * 60 + dt.getMinutes()) > lateH && r.isValid;
+                const coTime = r.checkOutTime ? UI.formatDate(r.checkOutTime) : '<span style="color:var(--text-muted)">-</span>';
+                const coType = r.checkOutType === 'Early' ? '<span class="badge badge-warning">Sớm</span>' :
+                    r.checkOutType === 'OnTime' ? '<span class="badge badge-success">Đúng giờ</span>' :
+                        r.checkOutTime ? '<span class="badge badge-fire">-</span>' : '<span style="color:#ef4444;font-size:0.78rem">⚠ Chưa CO</span>';
+                let workDur = '';
+                if (r.checkInTime && r.checkOutTime) {
+                    const ms = new Date(r.checkOutTime) - new Date(r.checkInTime);
+                    const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+                    workDur = `<span style="font-weight:700;color:#6ee7b7">${h}h${m}m</span>`;
+                }
+                return `<tr>
+        <td style="font-weight:600">${r.employeeName}</td>
+        <td><span class="badge badge-fire">${r.employeeCode}</span></td>
+        <td>${r.department || '-'}</td>
+        <td style="${isLate ? 'color:#f87171;font-weight:600' : ''}">${UI.formatDate(r.checkInTime)}${isLate ? ' ⏰' : ''}</td>
+        <td style="font-size:0.82rem">${coTime} ${coType}</td>
+        <td style="font-size:0.82rem">${workDur || '-'}</td>
+        <td><span class="mono">${r.ipAddress || '-'}</span></td>
+        <td style="font-size:0.78rem">${r.latitude ? `${r.latitude.toFixed(3)},${r.longitude.toFixed(3)}` : '-'}</td>
+        <td>${r.isValid ? '<span class="badge badge-success">Hợp lệ</span>' : '<span class="badge badge-danger">Thất bại</span>'}${r.invalidReason ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px">${r.invalidReason}</div>` : ''}</td>
+        <td>${r.isAnomalyFlagged ? '<span class="badge badge-warning">AI</span>' : '-'}</td>
+      </tr>`;
+            }).join('');
+        }
+
+        function renderLateReport(data, employees) {
+            const lateH = getThresholdMin(), threshStr = document.getElementById('late-threshold').value;
+            const empMap = {};
+            for (const r of data) {
+                if (!r.isValid) continue;
+                const dt = new Date(r.checkInTime), totalMin = dt.getHours() * 60 + dt.getMinutes();
+                if (totalMin > lateH) { if (!empMap[r.employeeName]) empMap[r.employeeName] = { code: r.employeeCode, dept: r.department, late: [] }; empMap[r.employeeName].late.push(dt); }
+            }
+            const totalDays = daysBetween(document.getElementById('from-date').value, document.getElementById('to-date').value);
+            const lateEmps = Object.entries(empMap).sort((a, b) => b[1].late.length - a[1].late.length);
+            document.getElementById('late-count-label').textContent = `${lateEmps.length} nhân viên đi trễ (sau ${threshStr}) trong kỳ`;
+            const totalLate = lateEmps.reduce((s, [, v]) => s + v.late.length, 0);
+            document.getElementById('late-summary-cards').innerHTML = [
+                [lateEmps.length, 'NV đi trễ'], [totalLate, 'Tổng lượt trễ'], [(employees.length - lateEmps.length), 'NV đúng giờ']
+            ].map(([v, l]) => `<div class="late-stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+            if (!lateEmps.length) { document.getElementById('late-tbody').innerHTML = '<tr><td colspan="5" class="text-center" style="padding:3rem;color:var(--color-success)">Không có nhân viên đi trễ trong kỳ này!</td></tr>'; return; }
+            document.getElementById('late-tbody').innerHTML = lateEmps.map(([name, info]) => {
+                const lateDates = info.late.map(d => `<span class="late-date-item">${d.toLocaleDateString('vi-VN')} — ${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>`).join('');
+                return `<tr><td style="font-weight:700">${name}</td><td><span class="badge badge-fire">${info.code || '-'}</span></td><td>${info.dept || '-'}</td><td><span class="badge badge-danger">${info.late.length} lần / ${totalDays} ngày</span></td><td>${lateDates}</td></tr>`;
+            }).join('');
+        }
+
+        function exportMatrixExcel() {
+            if (!allData.length) { alert('Nhấn Tải Dữ Liệu trước!'); return; }
+            const lateH = getThresholdMin(), from = document.getElementById('from-date').value, to = document.getElementById('to-date').value;
+            const days = []; const cur = new Date(from), end = new Date(to);
+            while (cur <= end) { days.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+            const empDayMap = {}, empMeta = {};
+            for (const r of allData) { if (!r.isValid) continue; const dt = new Date(r.checkInTime), dk = dt.toISOString().split('T')[0]; if (!empDayMap[r.employeeName]) { empDayMap[r.employeeName] = {}; empMeta[r.employeeName] = { code: r.employeeCode, dept: r.department }; } if (!empDayMap[r.employeeName][dk] || dt < new Date(empDayMap[r.employeeName][dk])) empDayMap[r.employeeName][dk] = dt; }
+            const header = ['Họ Tên NV', 'Mã NV', 'Phòng Ban', ...days.map(d => `${d.getDate()}/${d.getMonth() + 1}`)];
+            const wsData = [header]; const cellStyles = {};
+            Object.keys(empDayMap).sort().forEach((name, ri) => {
+                const row = [name, empMeta[name]?.code || '', empMeta[name]?.dept || ''];
+                days.forEach((d, ci) => { const dk = d.toISOString().split('T')[0], dt = empDayMap[name][dk]; if (dt) { row.push(dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })); cellStyles[`${ri + 1},${ci + 3}`] = (dt.getHours() * 60 + dt.getMinutes()) > lateH ? 'FFFF0000' : 'FF00AA44'; } else { row.push(''); cellStyles[`${ri + 1},${ci + 3}`] = null; } });
+                wsData.push(row);
+            });
+            const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(wsData);
+            for (const [key, color] of Object.entries(cellStyles)) { if (!color) continue; const [r, c] = key.split(',').map(Number), addr = XLSX.utils.encode_cell({ r, c }); if (!ws[addr]) continue; ws[addr].s = { fill: { patternType: 'solid', fgColor: { rgb: color } }, font: { color: { rgb: 'FFFFFFFF' }, bold: true }, alignment: { horizontal: 'center' } }; }
+            header.forEach((_, c) => { const addr = XLSX.utils.encode_cell({ r: 0, c }); if (ws[addr]) ws[addr].s = { fill: { patternType: 'solid', fgColor: { rgb: 'FF111111' } }, font: { color: { rgb: 'FFFFFFFF' }, bold: true }, alignment: { horizontal: 'center' } }; });
+            XLSX.utils.book_append_sheet(wb, ws, 'Ma Trận'); XLSX.writeFile(wb, `DiemDanh_MaTran_${from}_${to}.xlsx`, { cellStyles: true });
+        }
+
+        function exportListExcel() {
+            if (!allData.length) { alert('Nhấn Tải Dữ Liệu trước!'); return; }
+            const lateH = getThresholdMin(), from = document.getElementById('from-date').value, to = document.getElementById('to-date').value;
+            const rows = allData.map(r => { const dt = new Date(r.checkInTime), m = dt.getHours() * 60 + dt.getMinutes(); return { 'Họ Tên': r.employeeName, 'Mã NV': r.employeeCode, 'Phòng Ban': r.department || '', 'Ngày': dt.toLocaleDateString('vi-VN'), 'Giờ': dt.toLocaleTimeString('vi-VN'), 'IP': r.ipAddress || '', 'Hợp Lệ': r.isValid ? 'Có' : 'Không', 'Đi Trễ': r.isValid && m > lateH ? 'Có' : 'Không', 'AI': r.isAnomalyFlagged ? 'Có' : 'Không', 'Ghi Chú': r.invalidReason || r.anomalyNote || '' }; });
+            const ws = XLSX.utils.json_to_sheet(rows), wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Điểm Danh'); XLSX.writeFile(wb, `DiemDanh_DanhSach_${from}_${to}.xlsx`);
+        }
+
+        function exportLateExcel() {
+            if (!allData.length) { alert('Nhấn Tải Dữ Liệu trước!'); return; }
+            const lateH = getThresholdMin(), threshStr = document.getElementById('late-threshold').value, from = document.getElementById('from-date').value, to = document.getElementById('to-date').value;
+            const totalDays = daysBetween(from, to), empMap = {};
+            for (const r of allData) { if (!r.isValid) continue; const dt = new Date(r.checkInTime), m = dt.getHours() * 60 + dt.getMinutes(); if (m > lateH) { if (!empMap[r.employeeName]) empMap[r.employeeName] = { code: r.employeeCode, dept: r.department, late: [] }; empMap[r.employeeName].late.push(dt); } }
+            const rows = Object.entries(empMap).sort((a, b) => b[1].late.length - a[1].late.length).map(([name, info]) => ({ 'Họ Tên NV': name, 'Mã NV': info.code || '', 'Phòng Ban': info.dept || '', [`Số Ngày Đi Trễ (sau ${threshStr})`]: `${info.late.length} lần trên ${totalDays} ngày`, 'Ngày Đi Trễ': info.late.map(d => `${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`).join(' | ') }));
+            const ws = XLSX.utils.json_to_sheet(rows), wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Đi Trễ'); XLSX.writeFile(wb, `DiTre_${from}_${to}.xlsx`);
+        }
+
+        loadAll();
+        pageReady();
+    </script>
+</body>
+
+</html>

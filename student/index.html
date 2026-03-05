@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Sinh Viên Đăng Nhập — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <link rel="stylesheet" href="../css/student.css" />
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+
+    <div class="auth-page">
+        <div class="auth-card card">
+            <div class="auth-logo">
+                <div class="auth-logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                    </svg>
+                </div>
+                <div class="student-badge">
+                    <svg width="9" height="9" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    Sinh Viên
+                </div>
+                <h1>Điểm Danh Sinh Viên</h1>
+                <p>Hệ thống điểm danh QR — Dành cho sinh viên</p>
+            </div>
+
+            <div id="alert-box"></div>
+
+            <div id="login-section">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label class="form-label">MSSV / Email</label>
+                        <input type="text" id="email" class="form-control"
+                            placeholder="SV00001 ho\u1eb7c email@truong.edu.vn" required autocomplete="username" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mật Khẩu</label>
+                        <input type="password" id="password" class="form-control" placeholder="••••••••" required
+                            autocomplete="current-password" />
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" id="login-btn"
+                        style="padding:0.875rem;margin-top:0.5rem">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+                            <polyline points="10 17 15 12 10 7" />
+                            <line x1="15" y1="12" x2="3" y2="12" />
+                        </svg>
+                        Đăng Nhập
+                    </button>
+                </form>
+                <div class="auth-divider">hoặc</div>
+                <a href="register.html" class="btn btn-ghost btn-full">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <line x1="19" y1="8" x2="19" y2="14" />
+                        <line x1="22" y1="11" x2="16" y2="11" />
+                    </svg>
+                    Đăng Ký Lần Đầu
+                </a>
+            </div>
+
+            <!-- DEVICE BLOCKED -->
+            <div id="device-blocked-section" style="display:none">
+                <div class="alert alert-warning" style="margin-bottom:1rem">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="2" width="14" height="20" rx="2" />
+                        <line x1="12" y1="18" x2="12.01" y2="18" />
+                    </svg>
+                    <span><strong>Thiết bị mới!</strong> Nhập mã xác nhận từ Admin để đăng nhập thiết bị này.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mã xác nhận từ Admin</label>
+                    <input type="text" id="device-code" class="form-control" placeholder="AB12CD"
+                        style="text-transform:uppercase;letter-spacing:0.2rem;font-size:1.1rem;font-weight:700;text-align:center"
+                        maxlength="8" oninput="this.value=this.value.toUpperCase()" />
+                </div>
+                <div id="device-alert"></div>
+                <button onclick="submitDeviceChange()" class="btn btn-primary btn-full" id="device-btn"
+                    style="padding:0.875rem">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+                    </svg>
+                    Xác Nhận
+                </button>
+                <button onclick="backToLogin()" class="btn btn-ghost btn-full mt-2">← Quay lại</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        if (Auth.isLoggedIn()) {
+            const u = Auth.getUser();
+            if (u?.role === 'Student') window.location.href = 'scan.html';
+            else if (u?.role === 'Admin') window.location.href = '../admin/dashboard.html';
+            else window.location.href = '../scan.html';
+        }
+        let pendingEmail = '';
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn'), alertBox = document.getElementById('alert-box');
+            UI.clearAlert(alertBox); UI.setLoading(btn, true);
+            try {
+                const data = await Api.post('/auth/login', { email: document.getElementById('email').value.trim(), password: document.getElementById('password').value, deviceId: DeviceFingerprint.get(), deviceName: DeviceFingerprint.getName() }, false);
+                Auth.setToken(data.token);
+                setTimeout(() => { window.location.href = data.role === 'Student' ? 'scan.html' : (data.role === 'Admin' ? '../admin/dashboard.html' : '../scan.html'); }, 600);
+            } catch (err) {
+                if (err.errorCode === 'DEVICE_BLOCKED') { pendingEmail = document.getElementById('email').value.trim(); document.getElementById('login-section').style.display = 'none'; document.getElementById('device-blocked-section').style.display = 'block'; }
+                else UI.showAlert(alertBox, err.message, 'error');
+                UI.setLoading(btn, false);
+            }
+        });
+
+        function backToLogin() { document.getElementById('login-section').style.display = 'block'; document.getElementById('device-blocked-section').style.display = 'none'; }
+
+        async function submitDeviceChange() {
+            const btn = document.getElementById('device-btn'), code = document.getElementById('device-code').value.trim(), alertBox = document.getElementById('device-alert');
+            if (!code) return UI.showAlert(alertBox, 'Vui lòng nhập mã.', 'error');
+            UI.setLoading(btn, true);
+            try {
+                const data = await Api.post('/auth/change-device', { email: pendingEmail, registrationCode: code, newDeviceId: DeviceFingerprint.get(), newDeviceName: DeviceFingerprint.getName() }, false);
+                Auth.setToken(data.token); setTimeout(() => window.location.href = 'scan.html', 800);
+            } catch (err) { UI.showAlert(alertBox, err.message, 'error'); UI.setLoading(btn, false); }
+        }
+        setTimeout(() => UI.hideLoader(), 400);
+    </script>
+</body>
+
+</html>

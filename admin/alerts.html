@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Cảnh Báo AI — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+</head>
+
+<body>
+
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Cảnh Báo AI</span>
+                <div class="topbar-actions">
+                    <label
+                        style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text-secondary);cursor:pointer">
+                        <input type="checkbox" id="only-unresolved" onchange="loadAnomalies()" checked
+                            style="accent-color:var(--fire-orange)" />
+                        Chỉ chưa xử lý
+                    </label>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="alert alert-warning mb-3">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                        <line x1="12" y1="12" x2="12" y2="16" />
+                    </svg>
+                    <span><strong>AI Anomaly Detection (V3):</strong> Hệ thống sử dụng GPT-4o-mini để phân tích pattern
+                        điểm danh. Các trường hợp bất thường sẽ được đánh dấu để admin xem xét.</span>
+                </div>
+                <div id="alert-box"></div>
+                <div id="anomaly-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-title">
+                <svg viewBox="0 0 24 24" style="color:var(--color-warning)">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Phân Tích AI
+            </div>
+            <div id="ai-analysis-text"
+                style="background:rgba(245,158,11,0.06);box-shadow:inset 0 0 0 1px rgba(245,158,11,0.2);padding:1rem;white-space:pre-wrap;font-size:0.85rem;max-height:300px;overflow-y:auto;color:var(--text-primary)">
+            </div>
+            <div class="form-group mt-2">
+                <label class="form-label">Ghi Chú Xử Lý</label>
+                <input type="text" id="resolve-note" class="form-control"
+                    placeholder="VD: Đã xác nhận với nhân viên, không phải gian lận" />
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeDetail()" class="btn btn-ghost">Đóng</button>
+                <button onclick="resolveAnomaly()" class="btn btn-success" id="resolve-btn">Đánh Dấu Đã Xử Lý</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('alerts');
+        let currentAnomalyId = null;
+
+        async function loadAnomalies() {
+            UI.startTopBar();
+            const onlyUnresolved = document.getElementById('only-unresolved').checked;
+            const container = document.getElementById('anomaly-list');
+            container.innerHTML = '<div class="text-center text-muted" style="padding:3rem">Đang tải...</div>';
+            try {
+                const data = await Api.get(`/admin/anomalies?onlyUnresolved=${onlyUnresolved}`);
+                if (!data.length) {
+                    container.innerHTML = `<div class="card" style="padding:3rem;text-align:center">
+          <svg width="48" height="48" viewBox="0 0 24 24" stroke="var(--text-muted)" fill="none" stroke-width="1.4" style="margin:0 auto 1rem"><polyline points="20 6 9 17 4 12"/></svg>
+          <h3 style="margin-bottom:0.5rem">Không có cảnh báo!</h3>
+          <p class="text-muted">Hệ thống hoạt động bình thường.</p>
+        </div>`;
+                } else {
+                    container.innerHTML = data.map(a => `
+          <div class="card mb-2" style="border-left:2px solid ${a.isResolved ? 'var(--color-success)' : 'var(--color-warning)'}">
+            <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:0.5rem">
+              <div>
+                <div class="flex items-center gap-3 mb-1" style="flex-wrap:wrap">
+                  <span style="font-weight:700">${a.employeeName}</span>
+                  <span class="badge badge-fire">${a.employeeCode}</span>
+                  <span class="badge badge-warning">${a.anomalyType}</span>
+                  ${a.isResolved ? '<span class="badge badge-success">Đã xử lý</span>' : ''}
+                </div>
+                <div class="text-muted" style="font-size:0.78rem">Check-in: ${UI.formatDate(a.checkInTime)} &nbsp;|&nbsp; Phát hiện: ${UI.formatDate(a.createdAt)}</div>
+                <div style="margin-top:0.4rem;font-size:0.85rem">${a.description}</div>
+              </div>
+              ${!a.isResolved ? `<button onclick="openDetail(${a.id}, \`${a.aiAnalysis.replace(/`/g, "'")}\`)" class="btn btn-ghost btn-sm" style="flex-shrink:0">Xem AI</button>` : ''}
+            </div>
+          </div>`).join('');
+                }
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.endTopBar();
+        }
+
+        function openDetail(id, analysis) {
+            currentAnomalyId = id;
+            document.getElementById('ai-analysis-text').textContent = analysis;
+            document.getElementById('resolve-note').value = '';
+            document.getElementById('detail-modal').classList.add('active');
+        }
+        function closeDetail() { document.getElementById('detail-modal').classList.remove('active'); }
+
+        async function resolveAnomaly() {
+            const btn = document.getElementById('resolve-btn'); UI.setLoading(btn, true);
+            try {
+                await Api.put(`/admin/anomalies/${currentAnomalyId}/resolve`, document.getElementById('resolve-note').value || 'Đã xem xét.');
+                closeDetail(); loadAnomalies();
+                UI.showAlert(document.getElementById('alert-box'), 'Đã đánh dấu xử lý.', 'success');
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.setLoading(btn, false);
+        }
+
+        loadAnomalies();
+        pageReady();
+    </script>
+</body>
+
+</html>

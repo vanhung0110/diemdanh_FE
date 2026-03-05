@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Nhân Viên — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .detail-item label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 0.15rem;
+            letter-spacing: 0.06rem;
+        }
+
+        .detail-item span {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .att-summary {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .att-stat {
+            background: rgba(255, 80, 0, 0.06);
+            box-shadow: inset 0 0 0 1px rgba(255, 80, 0, 0.15);
+            padding: 0.75rem 1rem;
+            text-align: center;
+            flex: 1;
+            min-width: 90px;
+        }
+
+        .att-stat .val {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--fire-orange);
+        }
+
+        .att-stat .lbl {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            text-transform: uppercase;
+        }
+
+        @media(max-width:640px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Quản Lý Nhân Viên</span>
+                <div class="topbar-actions">
+                    <button onclick="exportAllExcel()" class="btn btn-ghost btn-sm" id="export-btn"></button>
+                    <button onclick="openImportModal()" class="btn btn-ghost btn-sm" id="import-btn"></button>
+                    <button onclick="openCreateModal()" class="btn btn-primary btn-sm" id="create-btn-top"></button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div id="alert-box"></div>
+                <!-- Search -->
+                <div class="card mb-2" style="padding:0.75rem 1rem">
+                    <div class="flex gap-3 items-center" style="flex-wrap:wrap">
+                        <div style="flex:1;min-width:200px;position:relative">
+                            <span
+                                style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"><svg
+                                    width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none"
+                                    stroke-width="2">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg></span>
+                            <input type="text" id="search-input" class="form-control"
+                                placeholder="Tìm tên, email, mã NV..." oninput="filterEmployees()"
+                                style="padding-left:2.2rem" />
+                        </div>
+                        <select id="filter-status" class="form-control" style="width:160px"
+                            onchange="filterEmployees()">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="inactive">Đã khóa</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã NV</th>
+                                    <th>Họ Tên</th>
+                                    <th>Email</th>
+                                    <th>Phòng Ban</th>
+                                    <th>Chức Vụ</th>
+                                    <th>Ngày Vào</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emp-tbody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted" style="padding:3rem">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORT EXCEL MODAL -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal" style="max-width:700px;width:95vw">
+            <div class="modal-title">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Import Excel — Tạo Tài Khoản Hàng Loạt
+            </div>
+            <div class="alert alert-info mt-1" style="font-size:0.8rem">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                    <line x1="12" y1="12" x2="12" y2="16" />
+                </svg>
+                <span>Cột A: Mã NV/SV &nbsp;|&nbsp; Cột B: Họ Tên &nbsp;|&nbsp; Cột C: Chức vụ (nhân viên / sinh viên)
+                    &nbsp;|&nbsp; Dòng 1 là tiêu đề</span>
+            </div>
+            <div class="form-group mt-2">
+                <label class="form-label">Chọn file .xlsx</label>
+                <input type="file" id="import-file" accept=".xlsx,.xls" class="form-control" />
+            </div>
+            <div id="import-preview"
+                style="max-height:220px;overflow-y:auto;margin-top:0.75rem;border:1px solid var(--border-color)"></div>
+            <div class="form-group mt-2">
+                <label class="form-label">Mật khẩu mặc định cho tất cả (tối thiểu 6 ký tự)</label>
+                <input type="text" id="import-default-pw" class="form-control" placeholder="DiemDanh@2025" />
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">User có thể đổi mật khẩu sau
+                    khi đăng nhập.</div>
+            </div>
+            <div id="import-result"></div>
+            <div class="modal-footer">
+                <button onclick="closeImportModal()" class="btn btn-ghost">Hủy</button>
+                <button onclick="confirmImport()" class="btn btn-primary" id="import-confirm-btn">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Tạo Tài Khoản
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE SINGLE ACCOUNT MODAL -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal">
+            <div class="modal-title">
+                <svg viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Tạo Tài Khoản Thủ Công
+            </div>
+            <div id="modal-alert"></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Mã NV / SV <span style="color:var(--color-danger)">*</span></label>
+                    <input type="text" id="m-code" class="form-control" placeholder="NV00001"
+                        style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Loại</label>
+                    <select id="m-role" class="form-control">
+                        <option value="Employee">Nhân Viên</option>
+                        <option value="Student">Sinh Viên</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Họ và Tên <span style="color:var(--color-danger)">*</span></label>
+                <input type="text" id="m-fullname" class="form-control" placeholder="Nguyễn Văn A" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mật Khẩu <span style="color:var(--color-danger)">*</span></label>
+                <input type="text" id="m-password" class="form-control" placeholder="Tối thiểu 6 ký tự" />
+            </div>
+            <div class="alert alert-info" style="font-size:0.78rem">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                    <line x1="12" y1="12" x2="12" y2="16" />
+                </svg>
+                <span>Username (tên đăng nhập) = Mã NV/SV. User đăng nhập bằng mã hoặc email.</span>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeCreateModal()" class="btn btn-ghost">Hủy</button>
+                <button onclick="createSingle()" class="btn btn-primary" id="create-single-btn">Tạo Tài Khoản</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OTP RESULT MODAL -->
+    <div class="modal-overlay" id="otp-modal">
+        <div class="modal" style="text-align:center">
+            <div class="modal-title" style="justify-content:center" id="otp-modal-title">OTP Đổi Mật Khẩu</div>
+            <div id="otp-result"
+                style="font-size:2.2rem;font-weight:800;letter-spacing:0.5rem;color:var(--fire-orange);background:rgba(255,80,0,0.08);box-shadow:inset 0 0 0 1px rgba(255,80,0,0.2);padding:1rem;margin:1rem 0;font-family:monospace"
+                id="otp-result-box">---</div>
+            <p id="otp-note" class="text-muted" style="font-size:0.82rem">Hết hạn sau 1 giờ.</p>
+            <p style="font-size:0.8rem;color:var(--text-muted)">Cung cấp mã này cho user. Họ nhập mã + mật khẩu mới
+                trong trang Scan → Đổi Mật Khẩu.</p>
+            <div class="modal-footer" style="justify-content:center">
+                <button onclick="copyOtp()" class="btn btn-ghost">Sao Chép Mã</button>
+                <button onclick="closeOtpModal()" class="btn btn-primary">Đã Hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMPLOYEE DETAIL MODAL -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal" style="max-width:860px;width:95vw;max-height:90vh;overflow-y:auto">
+            <div class="modal-title">
+                <svg viewBox="0 0 24 24" style="color:var(--fire-orange)">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span id="detail-modal-title">Chi Tiết Nhân Viên</span>
+            </div>
+            <div class="detail-grid" id="emp-info-grid"></div>
+            <div style="border-top:1px solid var(--border-color);padding-top:1rem;margin-bottom:1rem">
+                <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+                    <div class="section-title" style="font-size:0.875rem;margin-bottom:0">Lịch Sử Điểm Danh</div>
+                    <div class="flex gap-2" style="flex-wrap:wrap">
+                        <input type="month" id="att-month" class="form-control" style="width:160px"
+                            onchange="loadAttendance()" />
+                        <button onclick="exportEmployeeExcel()" class="btn btn-ghost btn-sm">Xuất Excel Tháng</button>
+                        <button onclick="closeDetailModal()" class="btn btn-ghost btn-sm">Đóng</button>
+                    </div>
+                </div>
+                <div class="att-summary" id="att-summary"></div>
+                <div class="table-wrapper" style="max-height:380px;overflow-y:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Giờ Điểm Danh</th>
+                                <th>IP</th>
+                                <th>GPS</th>
+                                <th>Trạng Thái</th>
+                                <th>Ghi Chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="att-tbody">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted" style="padding:2rem">Chọn tháng để xem
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('employees');
+        document.getElementById('import-btn').innerHTML = Icon.download + ' Import Excel';
+        document.getElementById('export-btn').innerHTML = Icon.download + ' Xuất Excel Tất Cả';
+        document.getElementById('create-btn-top').innerHTML = Icon.plus + ' Tạo Tài Khoản';
+
+        let allEmployees = [], currentEmployeeId = null, currentEmployeeName = '', currentAttData = [], importRows = [];
+
+        // ===== IMPORT EXCEL =====
+        function openImportModal() {
+            document.getElementById('import-modal').classList.add('active');
+            document.getElementById('import-preview').innerHTML = '';
+            document.getElementById('import-result').innerHTML = '';
+            document.getElementById('import-file').value = '';
+            importRows = [];
+        }
+        function closeImportModal() { document.getElementById('import-modal').classList.remove('active'); }
+
+        document.getElementById('import-file').addEventListener('change', (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const wb = XLSX.read(ev.target.result, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                // Skip header row (row 0)
+                importRows = data.slice(1).filter(r => r[0]).map(r => ({
+                    code: String(r[0]).trim().toUpperCase(),
+                    fullName: String(r[1]).trim(),
+                    role: String(r[2]).trim().toLowerCase().includes('sinh') ? 'Student' : 'Employee'
+                }));
+                const preview = document.getElementById('import-preview');
+                preview.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr><th style="text-align:left;padding:4px 8px;color:var(--text-muted)">Mã</th><th style="text-align:left;padding:4px 8px;color:var(--text-muted)">Họ Tên</th><th style="text-align:left;padding:4px 8px;color:var(--text-muted)">Loại</th></tr></thead><tbody>${importRows.map(r => `<tr><td style="padding:3px 8px"><span class="badge badge-fire">${r.code}</span></td><td style="padding:3px 8px">${r.fullName}</td><td style="padding:3px 8px">${r.role === 'Student' ? '<span class="badge badge-info">Sinh Viên</span>' : '<span class="badge badge-success">Nhân Viên</span>'}</td></tr>`).join('')}</tbody></table><p style="margin:0.5rem 0 0;color:var(--text-muted);font-size:0.75rem">Tổng: ${importRows.length} tài khoản</p>`;
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        async function confirmImport() {
+            if (!importRows.length) return;
+            const pw = document.getElementById('import-default-pw').value.trim();
+            if (!pw || pw.length < 6) { alert('Mật khẩu phải ít nhất 6 ký tự!'); return; }
+            const btn = document.getElementById('import-confirm-btn'); UI.setLoading(btn, true);
+            try {
+                const items = importRows.map(r => ({ code: r.code, fullName: r.fullName, role: r.role, password: pw }));
+                const res = await Api.post('/admin/bulk-create', { items });
+                document.getElementById('import-result').innerHTML = `<div class="alert alert-success"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Tạo thành công: <strong>${res.created}</strong> — Bỏ qua (đã có): ${res.skipped}${res.errors.length ? ` — Lỗi: ${res.errors.join(', ')}` : ''}. Đăng nhập bằng mã NV/SV + mật khẩu vừa đặt.</span></div>`;
+                loadEmployees();
+            } catch (e) { document.getElementById('import-result').innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+            UI.setLoading(btn, false);
+        }
+
+        // ===== CREATE SINGLE ACCOUNT =====
+        function openCreateModal() { document.getElementById('create-modal').classList.add('active'); }
+        function closeCreateModal() { document.getElementById('create-modal').classList.remove('active'); }
+
+        async function createSingle() {
+            const btn = document.getElementById('create-single-btn');
+            const code = document.getElementById('m-code').value.trim().toUpperCase();
+            const name = document.getElementById('m-fullname').value.trim();
+            const pw = document.getElementById('m-password').value.trim();
+            const role = document.getElementById('m-role').value;
+            if (!code || !name || !pw) { UI.showAlert(document.getElementById('modal-alert'), 'Vui lòng điền đầy đủ!', 'error'); return; }
+            if (pw.length < 6) { UI.showAlert(document.getElementById('modal-alert'), 'Mật khẩu ít nhất 6 ký tự!', 'error'); return; }
+            UI.setLoading(btn, true);
+            try {
+                const res = await Api.post('/admin/bulk-create', { items: [{ code, fullName: name, role, password: pw }] });
+                if (res.created === 1) {
+                    UI.showAlert(document.getElementById('modal-alert'), `Tạo thành công! Username: ${code}, mật khẩu: ${pw}`, 'success');
+                    loadEmployees();
+                } else {
+                    UI.showAlert(document.getElementById('modal-alert'), res.errors[0] || 'Mã đã tồn tại (bị bỏ qua).', 'error');
+                }
+            } catch (e) { UI.showAlert(document.getElementById('modal-alert'), e.message, 'error'); }
+            UI.setLoading(btn, false);
+        }
+
+        // ===== OTP PASSWORD CHANGE =====
+        async function genOtp(username, name) {
+            const btn = document.getElementById('otp-result-box');
+            document.getElementById('otp-modal-title').textContent = `OTP Đổi Mật Khẩu — ${name}`;
+            document.getElementById('otp-result').textContent = 'Đang tạo...';
+            document.getElementById('otp-modal').classList.add('active');
+            try {
+                const res = await Api.post('/admin/gen-otp-change-password', { username });
+                document.getElementById('otp-result').textContent = res.otp;
+                document.getElementById('otp-note').textContent = `Dành cho: ${res.fullName} (${res.username}) — hết hạn sau 1 giờ`;
+            } catch (e) { document.getElementById('otp-result').textContent = 'Lỗi: ' + e.message; }
+        }
+        function closeOtpModal() { document.getElementById('otp-modal').classList.remove('active'); }
+        function copyOtp() { navigator.clipboard.writeText(document.getElementById('otp-result').textContent); }
+
+
+        async function loadEmployees() {
+            UI.startTopBar();
+            try {
+                allEmployees = await Api.get('/admin/employees');
+                renderEmployees(allEmployees);
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.endTopBar();
+        }
+
+        function renderEmployees(data) {
+            const tbody = document.getElementById('emp-tbody');
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:3rem">Chưa có nhân viên nào</td></tr>'; return; }
+            tbody.innerHTML = data.map(e => `
+      <tr>
+        <td><span class="badge badge-fire">${e.employeeCode || '-'}</span></td>
+        <td style="font-weight:600">${e.fullName}</td>
+        <td style="color:var(--text-muted);font-size:0.82rem">${e.email}</td>
+        <td>${e.department || '-'}</td>
+        <td>${e.position || '-'}</td>
+        <td style="font-size:0.8rem">${e.joinDate ? UI.formatDate(e.joinDate).split(',')[0] : '-'}</td>
+        <td>${e.isActive ? '<span class="badge badge-success">Hoạt động</span>' : '<span class="badge badge-danger">Khóa</span>'}</td>
+        <td style="display:flex;gap:0.3rem;flex-wrap:wrap">
+          <button onclick="openDetail(${e.id},'${e.fullName.replace(/'/g, "&#39;")}')" class="btn btn-ghost btn-sm">Chi Tiết</button>
+          <button onclick="toggleActive(${e.id},'${e.fullName.replace(/'/g, "&#39;")}')" class="btn btn-ghost btn-sm">${e.isActive ? 'Khóa' : 'Mở'}</button>
+          <button onclick="genOtp('${e.employeeCode || e.email}','${e.fullName.replace(/'/g, "&#39;")}')" class="btn btn-ghost btn-sm" style="color:var(--fire-orange)" title="Tạo OTP đổi mật khẩu">🔑 OTP MK</button>
+        </td>
+      </tr>`).join('');
+        }
+
+        function filterEmployees() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            const status = document.getElementById('filter-status').value;
+            renderEmployees(allEmployees.filter(e => {
+                const matchSearch = !q || (e.fullName + e.email + e.employeeCode).toLowerCase().includes(q);
+                const matchStatus = !status || (status === 'active' ? e.isActive : !e.isActive);
+                return matchSearch && matchStatus;
+            }));
+        }
+
+        async function toggleActive(id, name) {
+            if (!confirm(`Thay đổi trạng thái của ${name}?`)) return;
+            try {
+                await Api.put(`/admin/employees/${id}/toggle-active`, {});
+                UI.showAlert(document.getElementById('alert-box'), 'Đã cập nhật trạng thái.', 'success');
+                loadEmployees();
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+        }
+
+        async function openDetail(id, name) {
+            currentEmployeeId = id; currentEmployeeName = name;
+            document.getElementById('detail-modal-title').textContent = name;
+            document.getElementById('detail-modal').classList.add('active');
+            const now = new Date();
+            document.getElementById('att-month').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const emp = allEmployees.find(e => e.id === id);
+            if (emp) {
+                document.getElementById('emp-info-grid').innerHTML = [
+                    ['Mã Nhân Viên', emp.employeeCode || '-'], ['Họ và Tên', emp.fullName],
+                    ['Email', emp.email], ['Phòng Ban', emp.department || '-'],
+                    ['Chức Vụ', emp.position || '-'], ['Ngày Vào Làm', emp.joinDate ? UI.formatDate(emp.joinDate).split(',')[0] : '-'],
+                    ['Trạng Thái', emp.isActive ? 'Đang hoạt động' : 'Đã khóa']
+                ].map(([l, v]) => `<div class="detail-item"><label>${l}</label><span>${v}</span></div>`).join('');
+            }
+            await loadAttendance();
+        }
+
+        async function loadAttendance() {
+            if (!currentEmployeeId) return;
+            const [year, month] = document.getElementById('att-month').value.split('-').map(Number);
+            const from = new Date(year, month - 1, 1).toISOString().split('T')[0];
+            const to = new Date(year, month, 0).toISOString().split('T')[0];
+            document.getElementById('att-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted">Đang tải...</td></tr>';
+            try {
+                const data = await Api.get(`/admin/reports?employeeId=${currentEmployeeId}&from=${from}&to=${to}&onlyValid=false`);
+                currentAttData = data;
+                const valid = data.filter(r => r.isValid).length;
+                const invalid = data.filter(r => !r.isValid).length;
+                const flagged = data.filter(r => r.isAnomalyFlagged).length;
+                document.getElementById('att-summary').innerHTML = [
+                    [data.length, 'Tổng lượt'], [valid, 'Hợp lệ'], [invalid, 'Thất bại'], [flagged, 'Cảnh báo AI']
+                ].map(([v, l]) => `<div class="att-stat"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
+                if (!data.length) { document.getElementById('att-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:2rem">Không có dữ liệu tháng này</td></tr>'; return; }
+                document.getElementById('att-tbody').innerHTML = data.map(r => {
+                    const dt = new Date(r.checkInTime);
+                    return `<tr>
+          <td style="font-size:0.85rem">${dt.toLocaleDateString('vi-VN')}</td>
+          <td><strong>${dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</strong></td>
+          <td><span class="mono">${r.ipAddress || '-'}</span></td>
+          <td style="font-size:0.8rem">${r.latitude && r.longitude ? `${r.latitude.toFixed(4)},${r.longitude.toFixed(4)}` : '-'}</td>
+          <td>${r.isValid ? '<span class="badge badge-success">Hợp lệ</span>' : '<span class="badge badge-danger">Thất bại</span>'}${r.isAnomalyFlagged ? '<span class="badge badge-warning" style="margin-left:2px">AI</span>' : ''}</td>
+          <td style="font-size:0.8rem;color:var(--text-muted)">${r.invalidReason || r.anomalyNote || ''}</td>
+        </tr>`;
+                }).join('');
+            } catch (e) { document.getElementById('att-tbody').innerHTML = `<tr><td colspan="6" class="text-center text-muted">${e.message}</td></tr>`; }
+        }
+
+        function closeDetailModal() { document.getElementById('detail-modal').classList.remove('active'); currentEmployeeId = null; currentAttData = []; }
+
+        function exportEmployeeExcel() {
+            if (!currentAttData.length) { alert('Không có dữ liệu!'); return; }
+            const monthVal = document.getElementById('att-month').value;
+            const rows = currentAttData.map(r => { const dt = new Date(r.checkInTime); return { 'Ngày': dt.toLocaleDateString('vi-VN'), 'Giờ': dt.toLocaleTimeString('vi-VN'), 'IP': r.ipAddress || '', 'GPS': r.latitude && r.longitude ? `${r.latitude.toFixed(6)},${r.longitude.toFixed(6)}` : '', 'Trạng Thái': r.isValid ? 'Hợp lệ' : 'Thất bại', 'AI': r.isAnomalyFlagged ? 'Có' : 'Không', 'Ghi Chú': r.invalidReason || r.anomalyNote || '' }; });
+            const ws = XLSX.utils.json_to_sheet(rows), wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Điểm Danh');
+            XLSX.writeFile(wb, `DiemDanh_${currentEmployeeName}_${monthVal}.xlsx`);
+        }
+
+        async function exportAllExcel() {
+            try {
+                const now = new Date(), from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                const data = await Api.get(`/admin/reports?from=${from}&to=${to}&onlyValid=false`);
+                if (!data.length) { alert('Không có dữ liệu tháng này!'); return; }
+                const rows = data.map(r => { const dt = new Date(r.checkInTime); return { 'Mã NV': r.employeeCode || '', 'Họ Tên': r.employeeName || '', 'Phòng Ban': r.department || '', 'Ngày': dt.toLocaleDateString('vi-VN'), 'Giờ': dt.toLocaleTimeString('vi-VN'), 'IP': r.ipAddress || '', 'Trạng Thái': r.isValid ? 'Hợp lệ' : 'Thất bại', 'AI': r.isAnomalyFlagged ? 'Có' : 'Không' }; });
+                const ws = XLSX.utils.json_to_sheet(rows), wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Tổng Hợp');
+                XLSX.writeFile(wb, `DiemDanh_TatCa_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}.xlsx`);
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+        }
+
+        function openCreateModal() { document.getElementById('create-modal').classList.add('active'); }
+        function closeCreateModal() { document.getElementById('create-modal').classList.remove('active'); }
+        function closeCodeModal() { document.getElementById('code-result-modal').classList.remove('active'); loadEmployees(); }
+
+        async function createCode() {
+            const btn = document.getElementById('create-btn'); UI.setLoading(btn, true);
+            try {
+                const data = await Api.post('/admin/codes/generate', { purpose: 'Register', targetEmail: document.getElementById('m-email').value || null, note: `Đăng ký: ${document.getElementById('m-fullname').value}`, expiryHours: 72 });
+                lastCode = data.code; closeCreateModal();
+                document.getElementById('generated-code').textContent = data.code;
+                document.getElementById('code-result-modal').classList.add('active');
+            } catch (e) { UI.showAlert(document.getElementById('modal-alert'), e.message, 'error'); }
+            UI.setLoading(btn, false);
+        }
+
+        function copyCode() { navigator.clipboard.writeText(lastCode); }
+
+        loadEmployees();
+        pageReady();
+    </script>
+</body>
+
+</html>

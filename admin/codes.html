@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Mã Dùng 1 Lần — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <style>
+        tr.used-row td {
+            color: var(--color-danger) !important;
+            opacity: 0.8;
+        }
+
+        tr.expired-row td {
+            opacity: 0.5;
+        }
+
+        .code-mono {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+
+        .purpose-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06rem;
+        }
+
+        .purpose-Register {
+            background: rgba(59, 130, 246, .12);
+            color: #60a5fa;
+        }
+
+        .purpose-ChangeDevice {
+            background: rgba(245, 158, 11, .12);
+            color: var(--color-warning);
+        }
+
+        .purpose-ChangePassword {
+            background: rgba(168, 85, 247, .12);
+            color: #c084fc;
+        }
+
+        .bulk-result-box {
+            background: var(--bg-raised);
+            box-shadow: inset 0 0 0 1px var(--border-color);
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .bulk-code-chip {
+            background: rgba(255, 80, 0, .08);
+            box-shadow: inset 0 0 0 1px rgba(255, 80, 0, .2);
+            padding: 0.35rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+            color: var(--fire-orange);
+            cursor: pointer;
+        }
+
+        .bulk-code-chip:hover {
+            background: rgba(255, 80, 0, .15);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Mã Dùng 1 Lần</span>
+                <div class="topbar-actions">
+                    <button onclick="confirmDeleteUsed()" class="btn btn-danger btn-sm" id="del-btn"></button>
+                    <button onclick="openModal()" class="btn btn-primary btn-sm" id="add-btn"></button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="alert alert-info mb-3" style="flex-wrap:wrap;gap:.4rem">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+                        <polyline points="13 2 13 9 20 9" />
+                    </svg>
+                    <span>
+                        <strong>Register</strong>: Nhân viên/SV đăng ký lần đầu. &nbsp;
+                        <strong>ChangeDevice</strong>: Đổi thiết bị. &nbsp;
+                        <strong>ChangePassword</strong>: Đổi mật khẩu (user dùng trực tiếp). &nbsp;
+                        Mã <span style="color:var(--color-danger)">màu đỏ</span> = đã dùng hoặc hết hạn.
+                    </span>
+                </div>
+                <div id="alert-box"></div>
+                <div class="card" style="padding:0">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã</th>
+                                    <th>Loại</th>
+                                    <th>Ghi Chú / Mục tiêu</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Hết Hạn</th>
+                                    <th>Dùng Bởi</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="codes-tbody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted" style="padding:3rem">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE / BULK GENERATE MODAL -->
+    <div class="modal-overlay" id="code-modal">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-title">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                </svg>
+                Tạo Mã Dùng 1 Lần
+            </div>
+            <div id="modal-alert"></div>
+
+            <div class="grid-2" style="gap:.75rem">
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Loại Mã</label>
+                    <select id="m-purpose" class="form-control" onchange="onPurposeChange()">
+                        <option value="Register">Register — Đăng ký tài khoản mới</option>
+                        <option value="ChangeDevice">ChangeDevice — Đổi thiết bị</option>
+                        <option value="ChangePassword">ChangePassword — Đổi mật khẩu</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Số Lượng Mã</label>
+                    <input type="number" id="m-qty" class="form-control" value="1" min="1" max="100"
+                        placeholder="1–100" />
+                </div>
+            </div>
+
+            <div class="form-group mt-1" id="target-group">
+                <label class="form-label" id="target-label">Email / Mã NV/SV (bắt buộc với ChangeDevice)</label>
+                <input type="text" id="m-target-email" class="form-control"
+                    placeholder="NV00001 hoặc email@congty.com" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Ghi Chú</label>
+                <input type="text" id="m-note" class="form-control" placeholder="Ví dụ: Tạo cho lớp K22A" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Hiệu Lực</label>
+                <select id="m-hours" class="form-control">
+                    <option value="1">1 giờ</option>
+                    <option value="8">8 giờ</option>
+                    <option value="24">24 giờ</option>
+                    <option value="72" selected>72 giờ (3 ngày)</option>
+                    <option value="168">1 tuần</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button onclick="closeModal()" class="btn btn-ghost">Hủy</button>
+                <button onclick="generateCodes()" class="btn btn-primary" id="gen-btn">Tạo Mã</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULT MODAL (single or bulk) -->
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal" style="max-width:620px;text-align:center">
+            <div class="modal-title" style="justify-content:center" id="result-title">Mã Đã Được Tạo</div>
+
+            <!-- Single code display -->
+            <div id="single-result">
+                <div id="result-code"
+                    style="font-size:2.2rem;font-weight:800;letter-spacing:.5rem;color:var(--fire-orange);background:rgba(255,80,0,.08);box-shadow:inset 0 0 0 1px rgba(255,80,0,.2);padding:1rem 1.5rem;margin:1rem 0;font-family:monospace;cursor:pointer"
+                    onclick="copySingle()" title="Click để sao chép"></div>
+                <p class="text-muted" style="font-size:.82rem" id="result-note"></p>
+            </div>
+
+            <!-- Bulk codes display -->
+            <div id="bulk-result" style="display:none;text-align:left">
+                <p class="text-muted" style="font-size:.82rem;margin-bottom:.75rem" id="bulk-note"></p>
+                <div class="bulk-result-box" id="bulk-codes-box"></div>
+                <p class="text-muted mt-1" style="font-size:.75rem">Click từng mã để sao chép. Hoặc ↓</p>
+            </div>
+
+            <div class="modal-footer" style="justify-content:center">
+                <button onclick="copyAllBulk()" class="btn btn-ghost" id="copy-all-btn" style="display:none">Sao Chép
+                    Tất Cả</button>
+                <button onclick="copySingle()" class="btn btn-ghost" id="copy-single-btn">Sao Chép</button>
+                <button onclick="closeResultModal()" class="btn btn-primary">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('codes');
+        document.getElementById('add-btn').innerHTML = Icon.plus + ' Tạo Mã Mới';
+        document.getElementById('del-btn').innerHTML = '<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg> Xóa Đã Dùng';
+
+        let lastSingleCode = '';
+        let lastBulkCodes = [];
+
+        const PURPOSES = {
+            'Register': 'Đăng ký tài khoản mới',
+            'ChangeDevice': 'Đổi thiết bị',
+            'ChangePassword': 'Đổi mật khẩu'
+        };
+
+        function onPurposeChange() {
+            const p = document.getElementById('m-purpose').value;
+            const g = document.getElementById('target-group');
+            const l = document.getElementById('target-label');
+            if (p === 'ChangeDevice') {
+                g.style.display = '';
+                l.textContent = 'Email / Mã NV/SV (bắt buộc với ChangeDevice)';
+            } else if (p === 'ChangePassword') {
+                g.style.display = '';
+                l.textContent = 'Email / Mã NV/SV (không bắt buộc — để trống nếu tạo hàng loạt)';
+            } else {
+                g.style.display = 'none';
+            }
+        }
+        onPurposeChange();
+
+        async function loadCodes() {
+            UI.startTopBar();
+            try {
+                const data = await Api.get('/admin/codes');
+                const tbody = document.getElementById('codes-tbody');
+                if (!data.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:3rem">Chưa có mã nào</td></tr>';
+                    UI.endTopBar(); return;
+                }
+                tbody.innerHTML = data.map(c => {
+                    const expired = new Date(c.expiresAt) < new Date();
+                    const isUsed = c.isUsed;
+                    const rowClass = isUsed ? 'used-row' : expired ? 'expired-row' : '';
+
+                    let statusBadge;
+                    if (isUsed) statusBadge = '<span class="badge badge-danger">Đã Dùng</span>';
+                    else if (expired) statusBadge = '<span class="badge badge-danger">Hết Hạn</span>';
+                    else statusBadge = '<span class="badge badge-success">Còn Hiệu Lực</span>';
+
+                    const purposeClass = `purpose-${c.purpose}`;
+                    const note = c.note || (c.targetEmail ? `→ ${c.targetEmail}` : '-');
+                    const actions = (!isUsed && !expired)
+                        ? `<button onclick="revokeCode(${c.id})" class="btn btn-danger btn-sm">Xóa</button>`
+                        : '';
+
+                    return `<tr class="${rowClass}">
+                        <td><span class="code-mono">${c.code}</span></td>
+                        <td><span class="purpose-badge ${purposeClass}">${c.purpose}</span></td>
+                        <td class="text-muted" style="font-size:.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${note}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-muted" style="font-size:.8rem">${UI.formatDate(c.expiresAt)}</td>
+                        <td style="font-size:.8rem">${c.usedByEmail || (c.usedAt ? UI.formatDate(c.usedAt) : '-')}</td>
+                        <td>${actions}</td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                UI.showAlert(document.getElementById('alert-box'), e.message, 'error');
+            }
+            UI.endTopBar();
+        }
+
+        function openModal() { document.getElementById('code-modal').classList.add('active'); UI.clearAlert(document.getElementById('modal-alert')); }
+        function closeModal() { document.getElementById('code-modal').classList.remove('active'); }
+        function closeResultModal() { document.getElementById('result-modal').classList.remove('active'); loadCodes(); }
+
+        async function generateCodes() {
+            const btn = document.getElementById('gen-btn');
+            UI.setLoading(btn, true);
+            UI.clearAlert(document.getElementById('modal-alert'));
+
+            const purpose = document.getElementById('m-purpose').value;
+            const qty = parseInt(document.getElementById('m-qty').value) || 1;
+            const targetEmail = document.getElementById('m-target-email').value.trim() || null;
+            const note = document.getElementById('m-note').value.trim();
+            const expiryHours = parseInt(document.getElementById('m-hours').value);
+
+            try {
+                if (qty === 1) {
+                    const data = await Api.post('/admin/codes/generate', { purpose, targetEmail, note, expiryHours });
+                    lastSingleCode = data.code;
+                    lastBulkCodes = [];
+                    closeModal();
+                    document.getElementById('result-title').textContent = 'Mã Đã Được Tạo';
+                    document.getElementById('result-code').textContent = data.code;
+                    document.getElementById('result-note').textContent = `Loại: ${PURPOSES[purpose] || purpose} · Hiệu lực ${expiryHours}h`;
+                    document.getElementById('single-result').style.display = '';
+                    document.getElementById('bulk-result').style.display = 'none';
+                    document.getElementById('copy-single-btn').style.display = '';
+                    document.getElementById('copy-all-btn').style.display = 'none';
+                } else {
+                    const data = await Api.post('/admin/codes/bulk-generate', { purpose, quantity: qty, targetEmail, note, expiryHours });
+                    lastBulkCodes = data.codes;
+                    lastSingleCode = '';
+                    closeModal();
+                    document.getElementById('result-title').textContent = `Đã tạo ${data.count} mã`;
+                    document.getElementById('bulk-note').textContent = `Loại: ${PURPOSES[purpose] || purpose} · Hiệu lực ${expiryHours}h · Click từng mã để sao chép`;
+                    document.getElementById('bulk-codes-box').innerHTML = data.codes
+                        .map(c => `<div class="bulk-code-chip" onclick="copyChip(this,'${c}')">${c}</div>`)
+                        .join('');
+                    document.getElementById('single-result').style.display = 'none';
+                    document.getElementById('bulk-result').style.display = '';
+                    document.getElementById('copy-all-btn').style.display = '';
+                    document.getElementById('copy-single-btn').style.display = 'none';
+                }
+                document.getElementById('result-modal').classList.add('active');
+            } catch (e) {
+                UI.showAlert(document.getElementById('modal-alert'), e.message, 'error');
+            }
+            UI.setLoading(btn, false);
+        }
+
+        function copySingle() {
+            if (lastSingleCode) navigator.clipboard.writeText(lastSingleCode);
+        }
+
+        function copyAllBulk() {
+            if (lastBulkCodes.length) navigator.clipboard.writeText(lastBulkCodes.join('\n'));
+        }
+
+        function copyChip(el, code) {
+            navigator.clipboard.writeText(code);
+            const orig = el.textContent;
+            el.textContent = '✓ Đã sao chép';
+            el.style.color = 'var(--color-success)';
+            setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1200);
+        }
+
+        async function revokeCode(id) {
+            if (!confirm('Xóa mã này?')) return;
+            try { await Api.delete(`/admin/codes/${id}`); loadCodes(); }
+            catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+        }
+
+        async function confirmDeleteUsed() {
+            if (!confirm('Xóa toàn bộ mã đã dùng và hết hạn? Không thể hoàn tác.')) return;
+            try {
+                const data = await Api.delete('/admin/codes/used');
+                UI.showAlert(document.getElementById('alert-box'), data.message, 'success');
+                loadCodes();
+            } catch (e) {
+                UI.showAlert(document.getElementById('alert-box'), e.message, 'error');
+            }
+        }
+
+        loadCodes();
+        pageReady();
+    </script>
+</body>
+
+</html>

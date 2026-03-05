@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Mạng IP — Điểm Danh QR</title>
+    <link rel="stylesheet" href="../css/main.css" />
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="main-content">
+            <header class="topbar">
+                <span class="topbar-title">Quản Lý Mạng IP</span>
+                <div class="topbar-actions">
+                    <button onclick="openModal()" class="btn btn-primary btn-sm" id="add-btn"></button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="alert alert-info mb-3">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    <span><strong>IP Whitelist:</strong> Chỉ các thiết bị có IP nằm trong danh sách này mới có thể điểm
+                        danh. Hỗ trợ IP đơn (192.168.1.10) và dải CIDR (192.168.1.0/24).</span>
+                </div>
+                <div id="alert-box"></div>
+                <div class="card">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tên</th>
+                                    <th>IP / CIDR</th>
+                                    <th>Mô Tả</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Ngày Thêm</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="net-tbody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted" style="padding:3rem">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="net-modal">
+        <div class="modal">
+            <div class="modal-title"><svg viewBox="0 0 24 24" style="color:var(--fire-orange)">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                </svg><span id="modal-title">Thêm Mạng Mới</span></div>
+            <div id="modal-alert"></div>
+            <input type="hidden" id="edit-id" />
+            <div class="form-group"><label class="form-label">Tên Mạng</label><input type="text" id="m-name"
+                    class="form-control" placeholder="Văn Phòng HCM" /></div>
+            <div class="form-group"><label class="form-label">IP hoặc CIDR</label><input type="text" id="m-cidr"
+                    class="form-control" placeholder="192.168.1.0/24 hoặc 203.0.113.5" /></div>
+            <div class="form-group"><label class="form-label">Mô Tả</label><input type="text" id="m-desc"
+                    class="form-control" placeholder="Mạng nội bộ văn phòng chính" /></div>
+            <div id="m-active-group" class="form-group hidden">
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.82rem">
+                    <input type="checkbox" id="m-active" style="accent-color:var(--fire-orange)" /> Đang hoạt động
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal()" class="btn btn-ghost">Hủy</button>
+                <button onclick="saveNetwork()" class="btn btn-primary" id="save-btn">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        injectSidebar('networks');
+        document.getElementById('add-btn').innerHTML = Icon.plus + ' Thêm Mạng';
+
+        async function loadNetworks() {
+            UI.startTopBar();
+            try {
+                const data = await Api.get('/admin/networks');
+                const tbody = document.getElementById('net-tbody');
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:3rem">Chưa có mạng nào. Tất cả IP đều được phép!</td></tr>'; UI.endTopBar(); return; }
+                tbody.innerHTML = data.map(n => `
+        <tr>
+          <td style="font-weight:600">${n.name}</td>
+          <td><span class="mono">${n.cidrOrIp}</span></td>
+          <td class="text-muted" style="font-size:0.82rem">${n.description}</td>
+          <td>${n.isActive ? '<span class="badge badge-success">Hoạt động</span>' : '<span class="badge badge-danger">Vô hiệu</span>'}</td>
+          <td class="text-muted" style="font-size:0.8rem">${UI.formatDate(n.createdAt)}</td>
+          <td style="display:flex;gap:0.3rem">
+            <button onclick='editNetwork(${JSON.stringify(n).replace(/'/g, "&#39;")})' class="btn btn-ghost btn-sm">Sửa</button>
+            <button onclick="deleteNetwork(${n.id},'${n.name}')" class="btn btn-danger btn-sm">Xóa</button>
+          </td>
+        </tr>`).join('');
+            } catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+            UI.endTopBar();
+        }
+
+        function openModal() { document.getElementById('net-modal').classList.add('active'); document.getElementById('modal-title').textContent = 'Thêm Mạng Mới'; document.getElementById('m-active-group').classList.add('hidden'); document.getElementById('edit-id').value = ''; }
+        function closeModal() { document.getElementById('net-modal').classList.remove('active');['m-name', 'm-cidr', 'm-desc'].forEach(id => document.getElementById(id).value = ''); }
+        function editNetwork(n) { document.getElementById('edit-id').value = n.id; document.getElementById('m-name').value = n.name; document.getElementById('m-cidr').value = n.cidrOrIp; document.getElementById('m-desc').value = n.description; document.getElementById('m-active').checked = n.isActive; document.getElementById('m-active-group').classList.remove('hidden'); document.getElementById('modal-title').textContent = 'Chỉnh Sửa Mạng'; document.getElementById('net-modal').classList.add('active'); }
+
+        async function saveNetwork() {
+            const btn = document.getElementById('save-btn'); UI.setLoading(btn, true);
+            const id = document.getElementById('edit-id').value;
+            const body = { name: document.getElementById('m-name').value, cidrOrIp: document.getElementById('m-cidr').value, description: document.getElementById('m-desc').value, isActive: document.getElementById('m-active').checked };
+            try {
+                if (id) await Api.put(`/admin/networks/${id}`, body); else await Api.post('/admin/networks', body);
+                closeModal(); loadNetworks(); UI.showAlert(document.getElementById('alert-box'), 'Đã lưu mạng.', 'success');
+            } catch (e) { UI.showAlert(document.getElementById('modal-alert'), e.message, 'error'); }
+            UI.setLoading(btn, false);
+        }
+
+        async function deleteNetwork(id, name) {
+            if (!confirm(`Xóa mạng "${name}"?`)) return;
+            try { await Api.delete(`/admin/networks/${id}`); loadNetworks(); UI.showAlert(document.getElementById('alert-box'), 'Đã xóa.', 'success'); }
+            catch (e) { UI.showAlert(document.getElementById('alert-box'), e.message, 'error'); }
+        }
+
+        loadNetworks();
+        pageReady();
+    </script>
+</body>
+
+</html>

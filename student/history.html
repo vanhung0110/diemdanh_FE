@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Lịch Sử Điểm Danh — Sinh Viên</title>
+    <link rel="stylesheet" href="../css/main.css" />
+    <link rel="stylesheet" href="../css/student.css" />
+</head>
+
+<body>
+    <div id="page-loader">
+        <div class="fire-orb">
+            <div class="fire-embers">
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+                <div class="ember"></div>
+            </div>
+        </div>
+        <div class="fire-loader-text">Đang tải...</div>
+    </div>
+    <div id="top-loading-bar"></div>
+
+    <header
+        style="background:var(--bg-surface);border-bottom:1px solid var(--border-color);padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50">
+        <div class="flex items-center gap-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="#6366f1" fill="none" stroke-width="1.8">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+            <span style="font-weight:700;font-size:0.95rem">Lịch Sử Điểm Danh</span>
+            <span class="student-badge">Sinh Viên</span>
+        </div>
+        <div class="flex gap-2">
+            <a href="scan.html" class="btn btn-ghost btn-sm">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                    <rect x="14" y="14" width="3" height="3" />
+                </svg>
+                Quét QR
+            </a>
+            <button onclick="Auth.logout()" class="btn btn-ghost btn-sm">
+                <svg viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Đăng Xuất
+            </button>
+        </div>
+    </header>
+    <div class="student-header-accent"></div>
+
+    <main style="max-width:900px;margin:0 auto;padding:1.5rem 1rem">
+        <!-- Stats -->
+        <div class="grid-4 mb-3" id="stats-grid">
+            <div class="card stat-card">
+                <div class="stat-icon"><svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg></div>
+                <div>
+                    <div class="stat-number" id="stat-total">—</div>
+                    <div class="stat-label">Tổng Buổi</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon"><svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg></div>
+                <div>
+                    <div class="stat-number" id="stat-valid">—</div>
+                    <div class="stat-label">Hợp Lệ</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg></div>
+                <div>
+                    <div class="stat-number" id="stat-invalid">—</div>
+                    <div class="stat-label">Không Hợp Lệ</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon"><svg viewBox="0 0 24 24">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg></div>
+                <div>
+                    <div class="stat-number" id="stat-anomaly">—</div>
+                    <div class="stat-label">Bất Thường</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="card mb-2" style="padding:1rem">
+            <div class="flex gap-2 items-center">
+                <input type="date" id="date-from" class="form-control" style="width:auto" />
+                <span class="text-muted" style="font-size:0.8rem">đến</span>
+                <input type="date" id="date-to" class="form-control" style="width:auto" />
+                <button onclick="loadHistory()" class="btn btn-primary btn-sm">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Lọc
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card" style="padding:0">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Thời Gian Vào</th>
+                            <th>Thời Gian Ra</th>
+                            <th>Trạng Thái</th>
+                            <th>IP / Mạng</th>
+                            <th>GPS</th>
+                            <th>AI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted" style="padding:2rem">Đang tải...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script>
+        if (!Auth.requireLogin()) { }
+        const u = Auth.getUser();
+        if (u && u.role !== 'Student') window.location.href = (u.role === 'Admin') ? '../admin/dashboard.html' : '../scan.html';
+
+        async function loadHistory() {
+            UI.startTopBar();
+            const from = document.getElementById('date-from').value;
+            const to = document.getElementById('date-to').value;
+            let url = '/attendance/my-history';
+            const params = [];
+            if (from) params.push(`from=${from}T00:00:00`);
+            if (to) params.push(`to=${to}T23:59:59`);
+            if (params.length) url += '?' + params.join('&');
+
+            try {
+                const records = await Api.get(url);
+                const valid = records.filter(r => r.isValid && !r.isAnomalyFlagged).length;
+                const invalid = records.filter(r => !r.isValid).length;
+                const anomaly = records.filter(r => r.isAnomalyFlagged).length;
+                document.getElementById('stat-total').textContent = records.length;
+                document.getElementById('stat-valid').textContent = valid;
+                document.getElementById('stat-invalid').textContent = invalid;
+                document.getElementById('stat-anomaly').textContent = anomaly;
+
+                const tbody = document.getElementById('history-tbody');
+                if (!records.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:2rem">Không có dữ liệu</td></tr>'; UI.endTopBar(); return; }
+                tbody.innerHTML = records.map(r => `
+        <tr>
+          <td>${UI.formatDate(r.checkInTime)}</td>
+          <td>${r.checkOutTime ? UI.formatDate(r.checkOutTime) : '<span class="text-muted">—</span>'}</td>
+          <td>${r.isValid ? '<span class="badge badge-success">Hợp lệ</span>' : `<span class="badge badge-danger">${r.invalidReason || 'Không hợp lệ'}</span>`}</td>
+          <td><span class="mono">${r.ipAddress}</span></td>
+          <td>${r.latitude ? `<span class="badge badge-info">${r.latitude.toFixed(3)},${r.longitude.toFixed(3)}</span>` : '<span class="text-muted">—</span>'}</td>
+          <td>${r.isAnomalyFlagged ? `<span class="badge badge-warning" title="${r.anomalyNote || ''}">⚠ AI</span>` : '<span class="badge badge-success">OK</span>'}</td>
+        </tr>`).join('');
+            } catch (e) { console.error(e); }
+            UI.endTopBar();
+        }
+
+        // Set default dates (last 30 days)
+        const today = new Date(), past = new Date();
+        past.setDate(today.getDate() - 30);
+        document.getElementById('date-to').value = today.toISOString().split('T')[0];
+        document.getElementById('date-from').value = past.toISOString().split('T')[0];
+
+        loadHistory();
+        setTimeout(() => UI.hideLoader(), 400);
+    </script>
+</body>
+
+</html>
