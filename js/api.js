@@ -1,5 +1,5 @@
 // API base configuration — auto-detect server from current browser host
-const API_BASE = `http://${window.location.hostname}:5000/api`;
+const API_BASE = `https://diemdanh-be.fly.dev/api`;
 
 // ===== TOKEN MANAGEMENT =====
 const Auth = {
